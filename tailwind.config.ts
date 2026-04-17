@@ -7,6 +7,7 @@ export default {
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+			"./1776401859899718686.html"
 	],
 	prefix: "",
 	theme: {
@@ -18,7 +19,21 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				heading: ['Oswald', 'sans-serif'],
+				body: ['Golos Text', 'sans-serif'],
+			},
 			colors: {
+				gold: {
+					DEFAULT: '#C9933A',
+					light: '#E8B96A',
+					dark: '#8A611A',
+				},
+				coal: {
+					DEFAULT: '#1A1208',
+					mid: '#2C1F0E',
+					light: '#3D2D14',
+				},
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -69,6 +84,18 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
+				'fade-in': {
+					from: { opacity: '0', transform: 'translateY(24px)' },
+					to: { opacity: '1', transform: 'translateY(0)' },
+				},
+				'slide-up': {
+					from: { opacity: '0', transform: 'translateY(60px)' },
+					to: { opacity: '1', transform: 'translateY(0)' },
+				},
+				'glow-pulse': {
+					'0%, 100%': { boxShadow: '0 0 20px rgba(201,147,58,0.3)' },
+					'50%': { boxShadow: '0 0 40px rgba(201,147,58,0.7)' },
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
@@ -88,7 +115,12 @@ export default {
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.7s ease-out forwards',
+				'fade-in-delay': 'fade-in 0.7s ease-out 0.3s forwards',
+				'fade-in-delay2': 'fade-in 0.7s ease-out 0.6s forwards',
+				'slide-up': 'slide-up 0.8s ease-out forwards',
+				'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
 			}
 		}
 	},
