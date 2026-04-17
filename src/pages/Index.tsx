@@ -8,7 +8,7 @@ const DESIGNER_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-9
 const portfolioItems = [
   {
     id: 1,
-    title: "Классика",
+    title: "Классические",
     subtitle: "Традиционная финская баня",
     desc: "Липа, ольха, дровяная печь. Проверенные временем решения с многолетним комфортом.",
     img: HERO_IMG,
