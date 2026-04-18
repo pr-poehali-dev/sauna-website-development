@@ -245,7 +245,7 @@ export default function Index() {
             className="font-body text-white/70 text-lg md:text-xl mt-6 max-w-2xl mx-auto leading-relaxed opacity-0 animate-fade-in"
             style={{ animationDelay: "0.5s" }}
           >
-            Профессиональная отделка от эконом до премиум. Классика, дизайнерские и рустикальные парные в стиле «Леший»
+            Профессиональная отделка от эконом до премиум. Классические, дизайнерские и рустикальные парные в стиле «Леший»
           </p>
 
           <div
