@@ -19,15 +19,21 @@ const PREMIUM_PHOTOS = [
   "https://cdn.poehali.dev/files/ce0e742c-6ef1-4596-ac54-44861a0dffbd.jpg",
 ];
 
+const CLASSIC_PHOTOS = [
+  "https://cdn.poehali.dev/files/5ab52df4-0e03-4f60-838c-917c06e35d22.jpg",
+  "https://cdn.poehali.dev/files/d3de9fb7-5e99-4db3-9a7a-2cb4c89e022a.jpg",
+  "https://cdn.poehali.dev/files/c107c9c1-ec37-4d0b-bef7-50034b237f9b.jpg",
+];
+
 const portfolioItems = [
   {
     id: 1,
     title: "Классические",
     subtitle: "Традиционная финская баня",
     desc: "Липа, ольха, дровяная печь. Проверенные временем решения с многолетним комфортом.",
-    img: HERO_IMG,
+    img: CLASSIC_PHOTOS[0],
     tag: "Классик",
-    photos: [] as string[],
+    photos: CLASSIC_PHOTOS,
   },
   {
     id: 2,
