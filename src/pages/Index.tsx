@@ -2,8 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/a3ad89f5-da15-43e0-a223-3b1d4b4f3f73.jpg";
-const RUSTIC_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/98165ce3-f195-4e96-8f84-ea24ca49ea53.jpg";
 const DESIGNER_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/0681b515-ecb7-492b-9798-47c44af5def8.jpg";
+
+const RUSTIC_PHOTOS = [
+  "https://cdn.poehali.dev/files/22a09e90-119d-464b-ad33-27fff10dc618.jpg",
+  "https://cdn.poehali.dev/files/b5aa6f34-0e56-4571-b178-2ad3e08abc1a.jpg",
+  "https://cdn.poehali.dev/files/6da2bc42-e853-4fbb-a3f1-358d3f50226f.jpg",
+  "https://cdn.poehali.dev/files/6adc7b4f-7e0c-4054-a267-c87c0545b860.jpg",
+];
 
 const portfolioItems = [
   {
@@ -13,14 +19,16 @@ const portfolioItems = [
     desc: "Липа, ольха, дровяная печь. Проверенные временем решения с многолетним комфортом.",
     img: HERO_IMG,
     tag: "Классик",
+    photos: [] as string[],
   },
   {
     id: 2,
     title: "Леший",
     subtitle: "Рустикальный стиль под старину",
     desc: "Грубо тёсаный брус, состаренное дерево, кованые детали. Атмосфера дремучего леса.",
-    img: RUSTIC_IMG,
+    img: RUSTIC_PHOTOS[0],
     tag: "Рустикал",
+    photos: RUSTIC_PHOTOS,
   },
   {
     id: 3,
@@ -29,6 +37,7 @@ const portfolioItems = [
     desc: "Гималайская соль, абаш, электрокаменка. Люксовая эстетика для ценителей.",
     img: DESIGNER_IMG,
     tag: "Дизайн",
+    photos: [] as string[],
   },
 ];
 
@@ -74,6 +83,7 @@ export default function Index() {
   const [form, setForm] = useState({ name: "", phone: "", message: "" });
   const [sent, setSent] = useState(false);
   const [activePortfolio, setActivePortfolio] = useState(0);
+  const [activePhoto, setActivePhoto] = useState(0);
 
   const statsSection = useInView();
   const portfolioSection = useInView();
@@ -344,7 +354,7 @@ export default function Index() {
             {portfolioItems.map((item, i) => (
               <button
                 key={i}
-                onClick={() => setActivePortfolio(i)}
+                onClick={() => { setActivePortfolio(i); setActivePhoto(0); }}
                 className={`font-heading text-sm tracking-widest uppercase px-5 py-2.5 rounded transition-all duration-300 ${
                   activePortfolio === i
                     ? "text-coal font-bold"
@@ -363,7 +373,7 @@ export default function Index() {
           >
             <div className="relative overflow-hidden" style={{ minHeight: "400px" }}>
               <img
-                src={portfolioItems[activePortfolio].img}
+                src={portfolioItems[activePortfolio].photos.length > 0 ? portfolioItems[activePortfolio].photos[activePhoto] : portfolioItems[activePortfolio].img}
                 alt={portfolioItems[activePortfolio].title}
                 className="w-full h-full object-cover transition-all duration-700"
                 style={{ minHeight: "400px" }}
@@ -401,17 +411,34 @@ export default function Index() {
             </div>
           </div>
 
+          {portfolioItems[activePortfolio].photos.length > 1 && (
+            <div className="grid grid-cols-4 gap-3 mt-4">
+              {portfolioItems[activePortfolio].photos.map((photo, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActivePhoto(i)}
+                  className={`relative rounded-xl overflow-hidden transition-all duration-300 ${
+                    activePhoto === i ? "ring-2 ring-gold scale-[1.02]" : "opacity-50 hover:opacity-80"
+                  }`}
+                  style={{ height: "90px" }}
+                >
+                  <img src={photo} alt={`фото ${i + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-3 mt-4">
             {portfolioItems.map((item, i) => (
               <button
                 key={i}
-                onClick={() => setActivePortfolio(i)}
+                onClick={() => { setActivePortfolio(i); setActivePhoto(0); }}
                 className={`relative rounded-xl overflow-hidden transition-all duration-300 ${
                   activePortfolio === i ? "ring-2 ring-gold scale-[1.02]" : "opacity-50 hover:opacity-80"
                 }`}
                 style={{ height: "100px" }}
               >
-                <img src={item.img} alt={item.title} className="w-full h-full object-cover" />
+                <img src={item.photos.length > 0 ? item.photos[0] : item.img} alt={item.title} className="w-full h-full object-cover" />
                 <div
                   className="absolute inset-0 flex items-end p-2"
                   style={{ background: "linear-gradient(to top, rgba(26,18,8,0.8) 0%, transparent 100%)" }}
