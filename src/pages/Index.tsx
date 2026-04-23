@@ -9,6 +9,9 @@ const RUSTIC_PHOTOS = [
   "https://cdn.poehali.dev/files/b5aa6f34-0e56-4571-b178-2ad3e08abc1a.jpg",
   "https://cdn.poehali.dev/files/6da2bc42-e853-4fbb-a3f1-358d3f50226f.jpg",
   "https://cdn.poehali.dev/files/6adc7b4f-7e0c-4054-a267-c87c0545b860.jpg",
+  "https://cdn.poehali.dev/files/1295bf7c-b389-4ae1-bac1-c65298ebaa27.jpg",
+  "https://cdn.poehali.dev/files/f53704b8-902f-4bfe-ba7c-543eaea8e24f.jpg",
+  "https://cdn.poehali.dev/files/98402e31-f1ea-4b8a-9a2c-cd020c48c42c.jpg",
 ];
 
 const PREMIUM_PHOTOS = [
