@@ -11,6 +11,14 @@ const RUSTIC_PHOTOS = [
   "https://cdn.poehali.dev/files/6adc7b4f-7e0c-4054-a267-c87c0545b860.jpg",
 ];
 
+const PREMIUM_PHOTOS = [
+  "https://cdn.poehali.dev/files/4679f019-fa42-42fa-92ca-7eac0e78ae1e.jpg",
+  "https://cdn.poehali.dev/files/253ab709-2e31-43a1-968c-1d3131c5d749.jpg",
+  "https://cdn.poehali.dev/files/82014c81-3478-45da-9e0e-20720f729b66.jpg",
+  "https://cdn.poehali.dev/files/cd2f0528-d5ae-490d-b7ed-1ff9cdebada9.jpg",
+  "https://cdn.poehali.dev/files/ce0e742c-6ef1-4596-ac54-44861a0dffbd.jpg",
+];
+
 const portfolioItems = [
   {
     id: 1,
@@ -35,9 +43,9 @@ const portfolioItems = [
     title: "Премиум",
     subtitle: "Дизайнерская парная",
     desc: "Гималайская соль, абаш, электрокаменка. Люксовая эстетика для ценителей.",
-    img: DESIGNER_IMG,
+    img: PREMIUM_PHOTOS[0],
     tag: "Дизайн",
-    photos: [] as string[],
+    photos: PREMIUM_PHOTOS,
   },
 ];
 
