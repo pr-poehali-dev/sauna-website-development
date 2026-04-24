@@ -165,7 +165,7 @@ export default function HeroSection({ scrollTo }: HeroSectionProps) {
             <Icon name="Award" size={28} className="text-coal" />
           </div>
           <div>
-            <h2 className="font-heading text-2xl font-bold text-gold-light tracking-wide">Компания SAUNA — Сергей Махов</h2>
+            <h2 className="font-heading text-2xl font-bold text-gold-light tracking-wide">Компания Сауна&amp;Sauna — Сергей Махов</h2>
             <p className="font-body text-white/60 mt-2 text-base leading-relaxed">
               Работаем с материалами:{" "}
               <span className="text-gold">липа, ольха, абаш, гималайская соль, можжевельник</span>. Устанавливаем дровяные

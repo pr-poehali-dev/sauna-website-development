@@ -74,7 +74,7 @@ export default function ContactsSection() {
               <div>
                 <h3 className="font-heading text-2xl font-bold text-gold-light mb-4 tracking-wide">Сергей Махов</h3>
                 <p className="font-body text-white/60 text-base">
-                  Основатель и руководитель компании SAUNA. Более 10 лет создаём бани мечты в Новосибирске и Горном Алтае.
+                  Основатель и руководитель компании Сауна&amp;Sauna. Более 10 лет создаём бани мечты в Новосибирске и Горном Алтае.
                 </p>
               </div>
 

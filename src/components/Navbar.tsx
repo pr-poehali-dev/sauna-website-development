@@ -27,7 +27,7 @@ export default function Navbar({ activeSection, menuOpen, setMenuOpen, scrollTo 
           >
             <Icon name="Flame" size={16} className="text-coal" />
           </div>
-          <span className="font-heading text-xl font-bold tracking-widest text-gold-light">SAUNA</span>
+          <span className="font-heading text-xl font-bold tracking-widest text-gold-light">САУНА&amp;SAUNA</span>
         </button>
 
         <div className="hidden md:flex items-center gap-8">
