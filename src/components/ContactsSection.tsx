@@ -31,15 +31,33 @@ function useInView(threshold = 0.15) {
   return { ref, visible };
 }
 
+const SEND_LEAD_URL = "https://functions.poehali.dev/b7883b44-027e-4706-8bcd-bc9fc242b880";
+
 export default function ContactsSection() {
   const [form, setForm] = useState({ name: "", phone: "", message: "" });
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const contactSection = useInView();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
-    setForm({ name: "", phone: "", message: "" });
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(SEND_LEAD_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error("Ошибка отправки");
+      setSent(true);
+      setForm({ name: "", phone: "", message: "" });
+    } catch {
+      setError("Не удалось отправить заявку. Позвоните нам по телефону.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -204,12 +222,16 @@ export default function ContactsSection() {
                         style={{ background: "rgba(26,18,8,0.6)" }}
                       />
                     </div>
+                    {error && (
+                      <p className="font-body text-red-400 text-sm text-center">{error}</p>
+                    )}
                     <button
                       type="submit"
-                      className="w-full font-heading text-sm font-bold tracking-widest uppercase py-4 rounded-lg transition-all duration-300 hover:opacity-90 text-coal"
+                      disabled={loading}
+                      className="w-full font-heading text-sm font-bold tracking-widest uppercase py-4 rounded-lg transition-all duration-300 hover:opacity-90 text-coal disabled:opacity-60"
                       style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
                     >
-                      Записаться на консультацию
+                      {loading ? "Отправляем..." : "Записаться на консультацию"}
                     </button>
                     <p className="font-body text-white/30 text-xs text-center">
                       Нажимая кнопку, вы соглашаетесь на обработку персональных данных в соответствии с{" "}
