@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 const socials = [
@@ -211,7 +212,10 @@ export default function ContactsSection() {
                       Записаться на консультацию
                     </button>
                     <p className="font-body text-white/30 text-xs text-center">
-                      Нажимая кнопку, вы соглашаетесь на обработку персональных данных
+                      Нажимая кнопку, вы соглашаетесь на обработку персональных данных в соответствии с{" "}
+                      <Link to="/privacy" className="underline hover:text-gold/60 transition-colors">
+                        Политикой конфиденциальности
+                      </Link>
                     </p>
                   </form>
                 </>
@@ -233,7 +237,12 @@ export default function ContactsSection() {
             </div>
             <span className="font-heading text-sm font-bold tracking-widest text-gold/60">SAUNA</span>
           </div>
-          <p className="font-body text-white/25 text-xs text-center">© 2025 Компания SAUNA · Новосибирск · Горный Алтай</p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="font-body text-white/25 text-xs text-center">© 2025 Компания Сауна&amp;Sauna · Новосибирск · Горный Алтай</p>
+            <Link to="/privacy" className="font-body text-white/20 hover:text-gold/50 text-xs transition-colors underline">
+              Политика конфиденциальности
+            </Link>
+          </div>
           <a href="tel:+79130036579" className="font-heading text-sm text-gold/60 hover:text-gold transition-colors tracking-wider">
             +7 913 003-65-79
           </a>
