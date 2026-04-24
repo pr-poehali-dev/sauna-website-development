@@ -42,181 +42,203 @@ export default function ContactsSection() {
   };
 
   return (
-    <section
-      id="contacts"
-      className="py-24 px-6 relative"
-      style={{ background: "linear-gradient(180deg, #1A1208 0%, #0D0904 100%)" }}
-    >
-      <div
-        className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: "linear-gradient(90deg, transparent, #C9933A, transparent)" }}
-      />
-
-      <div className="max-w-5xl mx-auto">
+    <>
+      {/* ── КОНТАКТЫ ── */}
+      <section
+        id="contacts"
+        className="py-24 px-6 relative"
+        style={{ background: "linear-gradient(180deg, #1A1208 0%, #0D0904 100%)" }}
+      >
         <div
-          ref={contactSection.ref}
-          className={`text-center mb-16 transition-all duration-700 ${
-            contactSection.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
-        >
-          <span className="font-heading text-xs tracking-[0.4em] uppercase text-gold font-medium">Свяжитесь с нами</span>
-          <h2 className="font-heading text-5xl md:text-6xl font-bold text-white mt-3">КОНТАКТЫ</h2>
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: "linear-gradient(90deg, transparent, #C9933A, transparent)" }}
+        />
+
+        <div className="max-w-5xl mx-auto">
           <div
-            className="w-16 h-px mx-auto mt-4"
-            style={{ background: "linear-gradient(90deg, transparent, #C9933A, transparent)" }}
-          />
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-12">
-          <div className="space-y-8">
-            <div>
-              <h3 className="font-heading text-2xl font-bold text-gold-light mb-4 tracking-wide">Сергей Махов</h3>
-              <p className="font-body text-white/60 text-base">
-                Основатель и руководитель компании SAUNA. Более 10 лет создаём бани мечты в Новосибирске и Горном Алтае.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <a
-                href="tel:+79130036579"
-                className="flex items-center gap-4 p-4 rounded-xl border border-gold/20 hover:border-gold/50 transition-all duration-300 group"
-                style={{ background: "rgba(44,31,14,0.4)" }}
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
-                >
-                  <Icon name="Phone" size={18} className="text-coal" />
-                </div>
-                <div>
-                  <div className="font-heading text-xs tracking-widest uppercase text-white/40">Телефон</div>
-                  <div className="font-heading text-lg font-bold text-gold-light group-hover:text-gold transition-colors">
-                    +7 913 003-65-79
-                  </div>
-                </div>
-              </a>
-
-              <div
-                className="flex items-center gap-4 p-4 rounded-xl border border-gold/20"
-                style={{ background: "rgba(44,31,14,0.4)" }}
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
-                >
-                  <Icon name="MapPin" size={18} className="text-coal" />
-                </div>
-                <div>
-                  <div className="font-heading text-xs tracking-widest uppercase text-white/40">Регионы работы</div>
-                  <div className="font-heading text-base font-bold text-white">Новосибирск · Горный Алтай</div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <p className="font-heading text-xs tracking-[0.3em] uppercase text-white/40 mb-4">Наши соц. сети</p>
-              <div className="flex flex-wrap gap-3">
-                {socials.map((s) => (
-                  <a
-                    key={s.name}
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-gold/40 transition-all duration-300 text-white/60 hover:text-white"
-                  >
-                    <Icon name={s.icon as "Youtube"} size={16} fallback="ExternalLink" />
-                    <span className="font-heading text-xs tracking-wider uppercase">{s.name}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
+            ref={contactSection.ref}
+            className={`text-center mb-16 transition-all duration-700 ${
+              contactSection.visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
+          >
+            <span className="font-heading text-xs tracking-[0.4em] uppercase text-gold font-medium">Свяжитесь с нами</span>
+            <h2 className="font-heading text-5xl md:text-6xl font-bold text-white mt-3">КОНТАКТЫ</h2>
+            <div
+              className="w-16 h-px mx-auto mt-4"
+              style={{ background: "linear-gradient(90deg, transparent, #C9933A, transparent)" }}
+            />
           </div>
 
-          <div
-            className="rounded-2xl border border-gold/20 p-8"
-            style={{ background: "rgba(44,31,14,0.5)", backdropFilter: "blur(12px)" }}
-          >
-            {sent ? (
-              <div className="flex flex-col items-center justify-center h-full text-center py-8 gap-4">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
-                >
-                  <Icon name="CheckCheck" size={28} className="text-coal" />
-                </div>
-                <h3 className="font-heading text-2xl font-bold text-gold-light">Заявка отправлена!</h3>
-                <p className="font-body text-white/60">Сергей свяжется с вами в ближайшее время для записи на консультацию.</p>
-                <button
-                  onClick={() => setSent(false)}
-                  className="font-heading text-sm tracking-widest uppercase px-6 py-2.5 border border-gold/40 text-gold hover:bg-gold hover:text-coal rounded transition-all duration-300"
-                >
-                  Отправить ещё
-                </button>
+          <div className="grid md:grid-cols-2 gap-12">
+            <div className="space-y-8">
+              <div>
+                <h3 className="font-heading text-2xl font-bold text-gold-light mb-4 tracking-wide">Сергей Махов</h3>
+                <p className="font-body text-white/60 text-base">
+                  Основатель и руководитель компании SAUNA. Более 10 лет создаём бани мечты в Новосибирске и Горном Алтае.
+                </p>
               </div>
-            ) : (
-              <>
-                <div className="mb-6">
-                  <h3 className="font-heading text-2xl font-bold text-white">Бесплатная консультация</h3>
-                  <p className="font-body text-white/50 text-sm mt-1">Обсудим ваш проект онлайн — без обязательств</p>
-                </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-2 block">
-                      Ваше имя
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Александр"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 transition-colors duration-300"
-                      style={{ background: "rgba(26,18,8,0.6)" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-2 block">
-                      Телефон
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="+7 900 000-00-00"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 transition-colors duration-300"
-                      style={{ background: "rgba(26,18,8,0.6)" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-2 block">
-                      Расскажите о проекте
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="Хочу баню 4×5м в рустикальном стиле..."
-                      value={form.message}
-                      onChange={(e) => setForm({ ...form, message: e.target.value })}
-                      className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 transition-colors duration-300 resize-none"
-                      style={{ background: "rgba(26,18,8,0.6)" }}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full font-heading text-sm font-bold tracking-widest uppercase py-4 rounded-lg transition-all duration-300 hover:opacity-90 text-coal"
+
+              <div className="space-y-4">
+                <a
+                  href="tel:+79130036579"
+                  className="flex items-center gap-4 p-4 rounded-xl border border-gold/20 hover:border-gold/50 transition-all duration-300 group"
+                  style={{ background: "rgba(44,31,14,0.4)" }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
                   >
-                    Записаться на консультацию
+                    <Icon name="Phone" size={18} className="text-coal" />
+                  </div>
+                  <div>
+                    <div className="font-heading text-xs tracking-widest uppercase text-white/40">Телефон</div>
+                    <div className="font-heading text-lg font-bold text-gold-light group-hover:text-gold transition-colors">
+                      +7 913 003-65-79
+                    </div>
+                  </div>
+                </a>
+
+                <div
+                  className="flex items-center gap-4 p-4 rounded-xl border border-gold/20"
+                  style={{ background: "rgba(44,31,14,0.4)" }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
+                  >
+                    <Icon name="MapPin" size={18} className="text-coal" />
+                  </div>
+                  <div>
+                    <div className="font-heading text-xs tracking-widest uppercase text-white/40">Регионы работы</div>
+                    <div className="font-heading text-base font-bold text-white">Новосибирск · Горный Алтай</div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-heading text-xs tracking-[0.3em] uppercase text-white/40 mb-4">Наши соц. сети</p>
+                <div className="flex flex-wrap gap-3">
+                  {socials.map((s) => (
+                    <a
+                      key={s.name}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/10 hover:border-gold/40 transition-all duration-300 text-white/60 hover:text-white"
+                    >
+                      <Icon name={s.icon as "Youtube"} size={16} fallback="ExternalLink" />
+                      <span className="font-heading text-xs tracking-wider uppercase">{s.name}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="rounded-2xl border border-gold/20 p-8"
+              style={{ background: "rgba(44,31,14,0.5)", backdropFilter: "blur(12px)" }}
+            >
+              {sent ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-8 gap-4">
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
+                  >
+                    <Icon name="CheckCheck" size={28} className="text-coal" />
+                  </div>
+                  <h3 className="font-heading text-2xl font-bold text-gold-light">Заявка отправлена!</h3>
+                  <p className="font-body text-white/60">Сергей свяжется с вами в ближайшее время для записи на консультацию.</p>
+                  <button
+                    onClick={() => setSent(false)}
+                    className="font-heading text-sm tracking-widest uppercase px-6 py-2.5 border border-gold/40 text-gold hover:bg-gold hover:text-coal rounded transition-all duration-300"
+                  >
+                    Отправить ещё
                   </button>
-                  <p className="font-body text-white/30 text-xs text-center">
-                    Нажимая кнопку, вы соглашаетесь на обработку персональных данных
-                  </p>
-                </form>
-              </>
-            )}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-6">
+                    <h3 className="font-heading text-2xl font-bold text-white">Бесплатная консультация</h3>
+                    <p className="font-body text-white/50 text-sm mt-1">Обсудим ваш проект онлайн — без обязательств</p>
+                  </div>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-2 block">
+                        Ваше имя
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Александр"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 transition-colors duration-300"
+                        style={{ background: "rgba(26,18,8,0.6)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-2 block">
+                        Телефон
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="+7 900 000-00-00"
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 transition-colors duration-300"
+                        style={{ background: "rgba(26,18,8,0.6)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-2 block">
+                        Расскажите о проекте
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder="Хочу баню 4×5м в рустикальном стиле..."
+                        value={form.message}
+                        onChange={(e) => setForm({ ...form, message: e.target.value })}
+                        className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 transition-colors duration-300 resize-none"
+                        style={{ background: "rgba(26,18,8,0.6)" }}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full font-heading text-sm font-bold tracking-widest uppercase py-4 rounded-lg transition-all duration-300 hover:opacity-90 text-coal"
+                      style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
+                    >
+                      Записаться на консультацию
+                    </button>
+                    <p className="font-body text-white/30 text-xs text-center">
+                      Нажимая кнопку, вы соглашаетесь на обработку персональных данных
+                    </p>
+                  </form>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {/* ── ФУТЕР ── */}
+      <footer className="py-8 px-6 border-t border-gold/10" style={{ background: "#0D0904" }}>
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #C9933A, #8A611A)" }}
+            >
+              <Icon name="Flame" size={12} className="text-coal" />
+            </div>
+            <span className="font-heading text-sm font-bold tracking-widest text-gold/60">SAUNA</span>
+          </div>
+          <p className="font-body text-white/25 text-xs text-center">© 2025 Компания SAUNA · Новосибирск · Горный Алтай</p>
+          <a href="tel:+79130036579" className="font-heading text-sm text-gold/60 hover:text-gold transition-colors tracking-wider">
+            +7 913 003-65-79
+          </a>
+        </div>
+      </footer>
+    </>
   );
 }

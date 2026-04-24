@@ -1,8 +1,28 @@
 import { useRef, useState, useEffect } from "react";
 
-const HERO_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/a3ad89f5-da15-43e0-a223-3b1d4b4f3f73.jpg";
-const RUSTIC_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/98165ce3-f195-4e96-8f84-ea24ca49ea53.jpg";
-const DESIGNER_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/0681b515-ecb7-492b-9798-47c44af5def8.jpg";
+const RUSTIC_PHOTOS = [
+  "https://cdn.poehali.dev/files/22a09e90-119d-464b-ad33-27fff10dc618.jpg",
+  "https://cdn.poehali.dev/files/b5aa6f34-0e56-4571-b178-2ad3e08abc1a.jpg",
+  "https://cdn.poehali.dev/files/6da2bc42-e853-4fbb-a3f1-358d3f50226f.jpg",
+  "https://cdn.poehali.dev/files/6adc7b4f-7e0c-4054-a267-c87c0545b860.jpg",
+  "https://cdn.poehali.dev/files/1295bf7c-b389-4ae1-bac1-c65298ebaa27.jpg",
+  "https://cdn.poehali.dev/files/f53704b8-902f-4bfe-ba7c-543eaea8e24f.jpg",
+  "https://cdn.poehali.dev/files/98402e31-f1ea-4b8a-9a2c-cd020c48c42c.jpg",
+];
+
+const PREMIUM_PHOTOS = [
+  "https://cdn.poehali.dev/files/4679f019-fa42-42fa-92ca-7eac0e78ae1e.jpg",
+  "https://cdn.poehali.dev/files/253ab709-2e31-43a1-968c-1d3131c5d749.jpg",
+  "https://cdn.poehali.dev/files/82014c81-3478-45da-9e0e-20720f729b66.jpg",
+  "https://cdn.poehali.dev/files/cd2f0528-d5ae-490d-b7ed-1ff9cdebada9.jpg",
+  "https://cdn.poehali.dev/files/ce0e742c-6ef1-4596-ac54-44861a0dffbd.jpg",
+];
+
+const CLASSIC_PHOTOS = [
+  "https://cdn.poehali.dev/files/5ab52df4-0e03-4f60-838c-917c06e35d22.jpg",
+  "https://cdn.poehali.dev/files/d3de9fb7-5e99-4db3-9a7a-2cb4c89e022a.jpg",
+  "https://cdn.poehali.dev/files/c107c9c1-ec37-4d0b-bef7-50034b237f9b.jpg",
+];
 
 const portfolioItems = [
   {
@@ -10,24 +30,27 @@ const portfolioItems = [
     title: "Классические",
     subtitle: "Традиционная финская баня",
     desc: "Липа, ольха, дровяная печь. Проверенные временем решения с многолетним комфортом.",
-    img: HERO_IMG,
+    img: CLASSIC_PHOTOS[0],
     tag: "Классик",
+    photos: CLASSIC_PHOTOS,
   },
   {
     id: 2,
     title: "Леший",
     subtitle: "Рустикальный стиль под старину",
     desc: "Грубо тёсаный брус, состаренное дерево, кованые детали. Атмосфера дремучего леса.",
-    img: RUSTIC_IMG,
+    img: RUSTIC_PHOTOS[0],
     tag: "Рустикал",
+    photos: RUSTIC_PHOTOS,
   },
   {
     id: 3,
     title: "Премиум",
     subtitle: "Дизайнерская парная",
     desc: "Гималайская соль, абаш, электрокаменка. Люксовая эстетика для ценителей.",
-    img: DESIGNER_IMG,
+    img: PREMIUM_PHOTOS[0],
     tag: "Дизайн",
+    photos: PREMIUM_PHOTOS,
   },
 ];
 
@@ -58,6 +81,7 @@ interface PortfolioSectionProps {
 
 export default function PortfolioSection({ scrollTo }: PortfolioSectionProps) {
   const [activePortfolio, setActivePortfolio] = useState(0);
+  const [activePhoto, setActivePhoto] = useState(0);
   const portfolioSection = useInView();
 
   return (
@@ -86,7 +110,7 @@ export default function PortfolioSection({ scrollTo }: PortfolioSectionProps) {
           {portfolioItems.map((item, i) => (
             <button
               key={i}
-              onClick={() => setActivePortfolio(i)}
+              onClick={() => { setActivePortfolio(i); setActivePhoto(0); }}
               className={`font-heading text-sm tracking-widest uppercase px-5 py-2.5 rounded transition-all duration-300 ${
                 activePortfolio === i
                   ? "text-coal font-bold"
@@ -105,7 +129,7 @@ export default function PortfolioSection({ scrollTo }: PortfolioSectionProps) {
         >
           <div className="relative overflow-hidden" style={{ minHeight: "400px" }}>
             <img
-              src={portfolioItems[activePortfolio].img}
+              src={portfolioItems[activePortfolio].photos.length > 0 ? portfolioItems[activePortfolio].photos[activePhoto] : portfolioItems[activePortfolio].img}
               alt={portfolioItems[activePortfolio].title}
               className="w-full h-full object-cover transition-all duration-700"
               style={{ minHeight: "400px" }}
@@ -143,17 +167,34 @@ export default function PortfolioSection({ scrollTo }: PortfolioSectionProps) {
           </div>
         </div>
 
+        {portfolioItems[activePortfolio].photos.length > 1 && (
+          <div className="grid grid-cols-4 gap-3 mt-4">
+            {portfolioItems[activePortfolio].photos.map((photo, i) => (
+              <button
+                key={i}
+                onClick={() => setActivePhoto(i)}
+                className={`relative rounded-xl overflow-hidden transition-all duration-300 ${
+                  activePhoto === i ? "ring-2 ring-gold scale-[1.02]" : "opacity-50 hover:opacity-80"
+                }`}
+                style={{ height: "90px" }}
+              >
+                <img src={photo} alt={`фото ${i + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-3 mt-4">
           {portfolioItems.map((item, i) => (
             <button
               key={i}
-              onClick={() => setActivePortfolio(i)}
+              onClick={() => { setActivePortfolio(i); setActivePhoto(0); }}
               className={`relative rounded-xl overflow-hidden transition-all duration-300 ${
                 activePortfolio === i ? "ring-2 ring-gold scale-[1.02]" : "opacity-50 hover:opacity-80"
               }`}
               style={{ height: "100px" }}
             >
-              <img src={item.img} alt={item.title} className="w-full h-full object-cover" />
+              <img src={item.photos.length > 0 ? item.photos[0] : item.img} alt={item.title} className="w-full h-full object-cover" />
               <div
                 className="absolute inset-0 flex items-end p-2"
                 style={{ background: "linear-gradient(to top, rgba(26,18,8,0.8) 0%, transparent 100%)" }}
