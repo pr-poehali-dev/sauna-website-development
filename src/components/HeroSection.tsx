@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/1478c925-ea13-412b-95a6-92e1287462ec/files/a3ad89f5-da15-43e0-a223-3b1d4b4f3f73.jpg";
@@ -37,6 +38,7 @@ interface HeroSectionProps {
 
 export default function HeroSection({ scrollTo }: HeroSectionProps) {
   const statsSection = useInView();
+  const navigate = useNavigate();
 
   return (
     <>
@@ -121,6 +123,13 @@ export default function HeroSection({ scrollTo }: HeroSectionProps) {
               className="font-heading text-sm font-semibold tracking-widest uppercase px-8 py-4 rounded border border-white/30 text-white hover:border-gold hover:text-gold transition-all duration-300"
             >
               Посмотреть работы
+            </button>
+            <button
+              onClick={() => navigate("/constructor")}
+              className="font-heading text-sm font-semibold tracking-widest uppercase px-8 py-4 rounded border border-gold/50 text-gold hover:bg-gold/10 transition-all duration-300 flex items-center gap-2"
+            >
+              <Icon name="Layers" size={16} />
+              Конструктор парилки
             </button>
           </div>
         </div>
