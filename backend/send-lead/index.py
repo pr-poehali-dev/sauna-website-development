@@ -2,12 +2,13 @@ import json
 import os
 import smtplib
 import urllib.request
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 
 def handler(event: dict, context) -> dict:
-    """Отправка заявки с сайта на email и в Telegram"""
+    """Отправка заявки с конструктора парилки на email, Telegram и мастеру в WhatsApp/Telegram"""
 
     if event.get("httpMethod") == "OPTIONS":
         return {
@@ -25,6 +26,7 @@ def handler(event: dict, context) -> dict:
     name = body.get("name", "").strip()
     phone = body.get("phone", "").strip()
     message = body.get("message", "").strip()
+    channel = body.get("channel", "").strip()  # whatsapp/telegram/viber/email/call
 
     if not name or not phone:
         return {
@@ -33,48 +35,86 @@ def handler(event: dict, context) -> dict:
             "body": json.dumps({"error": "Имя и телефон обязательны"}),
         }
 
-    send_email(name, phone, message)
-    send_telegram(name, phone, message)
+    # Уведомление мастеру через email и Telegram
+    send_email(name, phone, message, channel)
+    send_telegram(name, phone, message, channel)
+
+    # Ссылка для мастера — написать клиенту в WhatsApp
+    master_phone = os.environ.get("MASTER_PHONE", "").replace("+", "").replace(" ", "")
+    master_wa_url = None
+    if master_phone:
+        client_phone = phone.replace("+", "").replace(" ", "").replace("-", "")
+        reply_text = f"Здравствуйте, {name}! Получили вашу конфигурацию парилки. Готов обсудить детали."
+        master_wa_url = f"https://wa.me/{client_phone}?text={urllib.parse.quote(reply_text)}"
 
     return {
         "statusCode": 200,
         "headers": {"Access-Control-Allow-Origin": "*"},
-        "body": json.dumps({"ok": True}),
+        "body": json.dumps({"ok": True, "master_wa_url": master_wa_url}),
     }
 
 
-def send_email(name: str, phone: str, message: str):
+CHANNEL_LABELS = {
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "viber": "Viber",
+    "email": "Email",
+    "call": "Звонок",
+}
+
+
+def send_email(name: str, phone: str, message: str, channel: str):
     smtp_user = "SaunaNovosib@yandex.ru"
     smtp_password = os.environ["SMTP_PASSWORD"]
     recipient = "SaunaNovosib@yandex.ru"
 
+    channel_label = CHANNEL_LABELS.get(channel, channel)
+    client_phone_clean = phone.replace("+", "").replace(" ", "").replace("-", "")
+    wa_url = f"https://wa.me/{client_phone_clean}"
+    tg_url = f"https://t.me/+{client_phone_clean}"
+
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Новая заявка с сайта — {name}"
+    msg["Subject"] = f"🔥 Новая заявка с конструктора — {name}"
     msg["From"] = smtp_user
     msg["To"] = recipient
 
-    text = f"Новая заявка с сайта Сауна&Sauna\n\nИмя: {name}\nТелефон: {phone}\nСообщение: {message or '—'}"
+    text = (
+        f"Новая заявка с конструктора парилки\n\n"
+        f"Имя: {name}\n"
+        f"Телефон: {phone}\n"
+        f"Канал: {channel_label}\n\n"
+        f"{message or '—'}"
+    )
+
     html = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
-      <div style="background: #1A1208; padding: 24px; border-radius: 12px;">
-        <h2 style="color: #C9933A; margin: 0 0 16px;">🔥 Новая заявка с сайта</h2>
-        <table style="width: 100%; border-collapse: collapse;">
+    <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; background: #f5f0e8; padding: 20px; border-radius: 12px;">
+      <div style="background: #1A1208; padding: 28px; border-radius: 12px;">
+        <h2 style="color: #C9933A; margin: 0 0 4px; font-size: 20px;">🔥 Новая заявка</h2>
+        <p style="color: #888; margin: 0 0 20px; font-size: 13px;">Конструктор парилки</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
           <tr>
-            <td style="color: #999; padding: 8px 0; width: 120px;">Имя:</td>
-            <td style="color: #fff; padding: 8px 0;"><strong>{name}</strong></td>
+            <td style="color: #888; padding: 7px 0; width: 130px; font-size: 14px;">Имя:</td>
+            <td style="color: #fff; padding: 7px 0; font-size: 14px;"><strong>{name}</strong></td>
           </tr>
           <tr>
-            <td style="color: #999; padding: 8px 0;">Телефон:</td>
-            <td style="color: #fff; padding: 8px 0;"><strong>{phone}</strong></td>
+            <td style="color: #888; padding: 7px 0; font-size: 14px;">Телефон:</td>
+            <td style="color: #fff; padding: 7px 0; font-size: 14px;"><strong>{phone}</strong></td>
           </tr>
           <tr>
-            <td style="color: #999; padding: 8px 0; vertical-align: top;">Сообщение:</td>
-            <td style="color: #fff; padding: 8px 0;">{message or '—'}</td>
+            <td style="color: #888; padding: 7px 0; font-size: 14px;">Выбрал связь:</td>
+            <td style="color: #C9933A; padding: 7px 0; font-size: 14px;"><strong>{channel_label}</strong></td>
+          </tr>
+          <tr>
+            <td style="color: #888; padding: 7px 0; vertical-align: top; font-size: 14px;">Конфигурация:</td>
+            <td style="color: #ccc; padding: 7px 0; font-size: 13px; white-space: pre-line;">{message or '—'}</td>
           </tr>
         </table>
-        <a href="tel:{phone}" style="display: inline-block; margin-top: 20px; background: #C9933A; color: #1A1208; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-          Позвонить {phone}
-        </a>
+        <p style="color: #666; font-size: 13px; margin: 0 0 12px;">Быстрый ответ клиенту:</p>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <a href="tel:{phone}" style="background: #C9933A; color: #1A1208; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">📞 Позвонить</a>
+          <a href="{wa_url}" style="background: #25D366; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">WhatsApp</a>
+          <a href="{tg_url}" style="background: #2AABEE; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 13px;">Telegram</a>
+        </div>
       </div>
     </div>
     """
@@ -87,21 +127,31 @@ def send_email(name: str, phone: str, message: str):
         server.sendmail(smtp_user, recipient, msg.as_string())
 
 
-def send_telegram(name: str, phone: str, message: str):
+def send_telegram(name: str, phone: str, message: str, channel: str):
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
+    channel_label = CHANNEL_LABELS.get(channel, channel)
+    client_phone_clean = phone.replace("+", "").replace(" ", "").replace("-", "")
+    wa_url = f"https://wa.me/{client_phone_clean}"
+
+    # Берём первые 3 строки конфигурации (размеры, дерево, добавки)
+    config_preview = "\n".join(message.split("\n")[:4]) if message else "—"
+
     text = (
-        f"🔥 *Новая заявка с сайта*\n\n"
+        f"🔥 *Новая заявка с конструктора*\n\n"
         f"👤 *Имя:* {name}\n"
-        f"📞 *Телефон:* {phone}\n"
-        f"💬 *Сообщение:* {message or '—'}"
+        f"📞 *Телефон:* `{phone}`\n"
+        f"💬 *Хочет связи:* {channel_label}\n\n"
+        f"```\n{config_preview}\n```\n\n"
+        f"[Написать в WhatsApp]({wa_url})"
     )
 
     data = json.dumps({
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
     }).encode("utf-8")
 
     req = urllib.request.Request(
