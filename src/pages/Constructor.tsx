@@ -27,8 +27,9 @@ export default function Constructor() {
   const [viewMode, setViewMode] = useState<ViewMode>("iso");
 
   const [showForm, setShowForm] = useState(false);
+  const [formStep, setFormStep] = useState<"contact" | "channel" | "done">("contact");
   const [form, setForm] = useState({ name: "", phone: "" });
-  const [sent, setSent] = useState(false);
+  const [channel, setChannel] = useState<"whatsapp" | "telegram" | "viber" | "email" | "call">("whatsapp");
   const [sending, setSending] = useState(false);
 
   // ── Скачать PNG текущего вида ──
@@ -106,34 +107,57 @@ export default function Constructor() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
-  // ── Отправить заявку ──
-  const handleSendLead = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSending(true);
+  // ── Текст конфигурации ──
+  const buildConfigText = () => {
     const woodLabel = { lipa: "Липа", olha: "Ольха", abash: "Абаш" }[config.wood];
     const extras = [
-      config.salt && "гималайская соль",
+      config.salt    && "гималайская соль",
       config.juniper && "можжевельник",
-      config.light && "LED подсветка",
+      config.light   && "LED подсветка",
       config.benches && "лавки",
-      config.stoveEnabled && `${config.stoveType === "wood" ? "дровяная" : "электро"} печь (${config.stoveCorner})`,
+      config.stoveEnabled && `${config.stoveType === "wood" ? "дровяная" : "электро"} печь`,
     ].filter(Boolean).join(", ");
-    const message = [
+    return [
       `Конфигурация парилки:`,
       `Размеры: ${config.width}м × ${config.depth}м × ${config.height}м`,
       `Площадь: ${(config.width * config.depth).toFixed(1)} м²`,
-      `Дерево: ${woodLabel}, ${config.direction === "horizontal" ? "горизонталь" : "вертикаль"}`,
+      `Дерево: ${woodLabel}`,
       extras ? `Добавки: ${extras}` : "",
       `Дверь: ${{ front:"передняя", left:"левая", right:"правая" }[config.doorWall]} стена`,
+      `Имя: ${form.name}`,
+      `Телефон: ${form.phone}`,
     ].filter(Boolean).join("\n");
+  };
+
+  // ── Отправить через мессенджер/почту ──
+  const handleSend = async () => {
+    const text = buildConfigText();
+    const encoded = encodeURIComponent(text);
+    const phone = form.phone.replace(/\D/g, "");
+
+    if (channel === "whatsapp") {
+      window.open(`https://wa.me/${phone}?text=${encoded}`, "_blank");
+    } else if (channel === "telegram") {
+      window.open(`https://t.me/share/url?url=&text=${encoded}`, "_blank");
+    } else if (channel === "viber") {
+      window.open(`viber://forward?text=${encoded}`, "_blank");
+    } else if (channel === "email") {
+      window.open(`mailto:?subject=Конфигурация парилки&body=${encoded}`, "_blank");
+    } else if (channel === "call") {
+      window.open(`tel:${phone}`);
+    }
+
+    // Параллельно отправляем на бэк
+    setSending(true);
     try {
       await fetch(SEND_LEAD_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, phone: form.phone, message }),
+        body: JSON.stringify({ name: form.name, phone: form.phone, channel, message: text }),
       });
-      setSent(true);
     } finally { setSending(false); }
+
+    setFormStep("done");
   };
 
   return (
@@ -237,59 +261,152 @@ export default function Constructor() {
       {/* Модалка заявки */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(13,9,4,0.92)", backdropFilter: "blur(12px)" }}>
-          <div className="w-full max-w-md rounded-2xl border border-gold/20 p-8"
+          style={{ background: "rgba(13,9,4,0.92)", backdropFilter: "blur(12px)" }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowForm(false); setFormStep("contact"); } }}>
+          <div className="w-full max-w-md rounded-2xl border border-gold/20 p-6"
             style={{ background: "rgba(44,31,14,0.97)" }}>
-            {sent ? (
-              <div className="flex flex-col items-center text-center gap-4 py-4">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
-                  <Icon name="CheckCheck" size={26} className="text-coal" />
+
+            {/* Шапка */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                {/* Индикатор шагов */}
+                {(["contact","channel","done"] as const).map((s, i) => (
+                  <div key={s} className={`h-1.5 rounded-full transition-all ${
+                    s === formStep ? "w-8 bg-gold" : i < ["contact","channel","done"].indexOf(formStep) ? "w-4 bg-gold/40" : "w-4 bg-white/10"
+                  }`} />
+                ))}
+              </div>
+              <button onClick={() => { setShowForm(false); setFormStep("contact"); }}
+                className="text-white/30 hover:text-white transition-colors">
+                <Icon name="X" size={18} />
+              </button>
+            </div>
+
+            {/* ШАГ 1 — Контакты */}
+            {formStep === "contact" && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-heading text-xl font-bold text-white">Ваши контакты</h3>
+                  <p className="font-body text-white/40 text-sm mt-1">Шаг 1 из 2 — имя и телефон</p>
                 </div>
-                <h3 className="font-heading text-2xl font-bold text-gold-light">Заявка отправлена!</h3>
-                <p className="font-body text-white/60 text-sm">Мастер свяжется с вами и обсудит конфигурацию парилки.</p>
-                <button onClick={() => { setSent(false); setShowForm(false); }}
-                  className="font-heading text-sm tracking-widest uppercase px-6 py-2.5 border border-gold/40 text-gold hover:bg-gold hover:text-coal rounded-lg transition-all">
-                  Закрыть
+
+                {/* Превью конфигурации */}
+                <div className="rounded-xl border border-gold/15 px-3 py-3 space-y-1"
+                  style={{ background: "rgba(201,147,58,0.05)" }}>
+                  <p className="font-heading text-xs tracking-widest uppercase text-white/30 mb-2">Ваш проект</p>
+                  {[
+                    [`${config.width}×${config.depth}×${config.height} м`, "Ruler"],
+                    [{ lipa:"Липа", olha:"Ольха", abash:"Абаш" }[config.wood], "TreePine"],
+                    [[config.salt&&"соль", config.juniper&&"можжевельник", config.light&&"LED", config.benches&&"лавки"].filter(Boolean).join(", ") || "без добавок", "Layers"],
+                    [config.stoveEnabled ? (config.stoveType==="wood"?"Дровяная печь":"Электрокаменка") : "без печи", "Flame"],
+                  ].map(([val, icon]) => (
+                    <div key={icon as string} className="flex items-center gap-2">
+                      <Icon name={icon as "Ruler"} size={12} className="text-gold/50 flex-shrink-0" />
+                      <span className="font-body text-xs text-white/60">{val as string}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-1.5 block">Ваше имя</label>
+                  <input type="text" required placeholder="Александр" value={form.name}
+                    onChange={e => setForm({...form, name: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20"
+                    style={{ background: "rgba(26,18,8,0.6)" }} />
+                </div>
+                <div>
+                  <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-1.5 block">Телефон</label>
+                  <input type="tel" required placeholder="+7 900 000-00-00" value={form.phone}
+                    onChange={e => setForm({...form, phone: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20"
+                    style={{ background: "rgba(26,18,8,0.6)" }} />
+                </div>
+                <button
+                  disabled={!form.name.trim() || !form.phone.trim()}
+                  onClick={() => setFormStep("channel")}
+                  className="w-full font-heading text-sm font-bold tracking-widest uppercase py-3.5 rounded-lg text-coal disabled:opacity-40 transition-all"
+                  style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                  Далее — выбрать способ связи
                 </button>
               </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="font-heading text-xl font-bold text-white">Оставить заявку</h3>
-                    <p className="font-body text-white/40 text-sm mt-1">Конфигурация отправится мастеру</p>
-                  </div>
-                  <button onClick={() => setShowForm(false)} className="text-white/35 hover:text-white transition-colors">
-                    <Icon name="X" size={20} />
+            )}
+
+            {/* ШАГ 2 — Канал связи */}
+            {formStep === "channel" && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-heading text-xl font-bold text-white">Способ связи</h3>
+                  <p className="font-body text-white/40 text-sm mt-1">Шаг 2 из 2 — куда отправить проект</p>
+                </div>
+
+                <div className="space-y-2">
+                  {([
+                    ["whatsapp", "WhatsApp",  "MessageCircle", "#25D366", "Проект придёт вам в чат"],
+                    ["telegram", "Telegram",  "Send",          "#2AABEE", "Откроется чат с конфигурацией"],
+                    ["viber",    "Viber",     "Phone",         "#7360F2", "Отправка через Viber"],
+                    ["email",    "Email",     "Mail",          "#C9933A", "Письмо с деталями проекта"],
+                    ["call",     "Позвонить", "PhoneCall",     "#8A8A8A", "Просто наберём ваш номер"],
+                  ] as [typeof channel, string, string, string, string][]).map(([val, label, icon, color, hint]) => (
+                    <button key={val} onClick={() => setChannel(val)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
+                        channel === val ? "border-gold bg-gold/10" : "border-white/10 hover:border-white/25"
+                      }`}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: channel === val ? color + "33" : "rgba(255,255,255,0.05)" }}>
+                        <Icon name={icon as "Send"} size={17} style={{ color: channel === val ? color : "rgba(255,255,255,0.3)" }} />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className={`font-bold text-sm ${channel === val ? "text-white" : "text-white/60"}`}>{label}</div>
+                        <div className="text-white/30 text-xs">{hint}</div>
+                      </div>
+                      {channel === val && <Icon name="Check" size={14} className="text-gold flex-shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setFormStep("contact")}
+                    className="flex-1 py-3 rounded-xl border border-white/10 text-white/40 hover:text-white hover:border-white/30 font-heading text-xs tracking-widest uppercase transition-all">
+                    Назад
+                  </button>
+                  <button onClick={handleSend} disabled={sending}
+                    className="flex-[2] py-3 rounded-xl font-heading text-sm font-bold tracking-widest uppercase text-coal disabled:opacity-50 transition-all"
+                    style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                    {sending ? "Отправляем..." : "Отправить проект"}
                   </button>
                 </div>
-                <form onSubmit={handleSendLead} className="space-y-4">
-                  <div>
-                    <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-1.5 block">Ваше имя</label>
-                    <input type="text" required placeholder="Александр" value={form.name}
-                      onChange={e => setForm({...form, name: e.target.value})}
-                      className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20"
-                      style={{ background: "rgba(26,18,8,0.6)" }} />
-                  </div>
-                  <div>
-                    <label className="font-heading text-xs tracking-widest uppercase text-white/40 mb-1.5 block">Телефон</label>
-                    <input type="tel" required placeholder="+7 900 000-00-00" value={form.phone}
-                      onChange={e => setForm({...form, phone: e.target.value})}
-                      className="w-full px-4 py-3 rounded-lg border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20"
-                      style={{ background: "rgba(26,18,8,0.6)" }} />
-                  </div>
-                  <button type="submit" disabled={sending}
-                    className="w-full font-heading text-sm font-bold tracking-widest uppercase py-4 rounded-lg text-coal disabled:opacity-60"
-                    style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
-                    {sending ? "Отправляем..." : "Отправить конфигурацию"}
-                  </button>
-                  <p className="font-body text-white/25 text-xs text-center">
-                    Вместе с заявкой отправим все настройки парилки
-                  </p>
-                </form>
-              </>
+              </div>
             )}
+
+            {/* ШАГ 3 — Готово */}
+            {formStep === "done" && (
+              <div className="flex flex-col items-center text-center gap-4 py-4">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                  <Icon name="CheckCheck" size={28} className="text-coal" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-2xl font-bold text-gold-light">Готово, {form.name}!</h3>
+                  <p className="font-body text-white/55 text-sm mt-2 leading-relaxed">
+                    Проект парилки отправлен через{" "}
+                    {{ whatsapp:"WhatsApp", telegram:"Telegram", viber:"Viber", email:"Email", call:"звонок" }[channel]}.
+                    <br />Мастер свяжется с вами для уточнения деталей.
+                  </p>
+                </div>
+                <div className="flex gap-2 w-full">
+                  <button onClick={handleDownloadPdf}
+                    className="flex-1 py-2.5 rounded-xl border border-gold/35 text-gold hover:bg-gold/10 font-heading text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-1.5">
+                    <Icon name="FileText" size={13} />PDF
+                  </button>
+                  <button onClick={() => { setShowForm(false); setFormStep("contact"); }}
+                    className="flex-1 py-2.5 rounded-xl font-heading text-xs tracking-widest uppercase text-coal"
+                    style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                    Закрыть
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
