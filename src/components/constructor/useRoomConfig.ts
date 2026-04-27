@@ -28,6 +28,9 @@ export interface RoomConfig {
 
   // Дверь
   doorWall: DoorWall;
+
+  // Лавки
+  benches: boolean;
 }
 
 export const DEFAULT_CONFIG: RoomConfig = {
@@ -43,6 +46,7 @@ export const DEFAULT_CONFIG: RoomConfig = {
   stoveType: "wood",
   stoveCorner: "back-right",
   doorWall: "front",
+  benches: true,
 };
 
 // Авто-размещение соли и можжевельника
