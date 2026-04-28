@@ -8,17 +8,21 @@ export type DoorWall = "front" | "left" | "right";
 
 export interface RoomConfig {
   // Размеры (метры)
-  width: number;   // левая-правая
-  depth: number;   // передняя-задняя
-  height: number;  // высота
+  width: number;
+  depth: number;
+  height: number;
 
-  // Материалы (применяются ко всем стенам)
+  // Материалы
   wood: WoodType;
   direction: Direction;
 
   // Добавки
   salt: boolean;
+  saltPanelWidth: number;   // ширина панно соли, метры
+  saltPanelHeight: number;  // высота панно соли, метры
   juniper: boolean;
+  juniperPanelWidth: number;  // ширина панно можжевельника на потолке, метры
+  juniperPanelDepth: number;  // глубина панно можжевельника на потолке, метры
   light: boolean;
 
   // Печь
@@ -40,7 +44,11 @@ export const DEFAULT_CONFIG: RoomConfig = {
   wood: "lipa",
   direction: "horizontal",
   salt: false,
+  saltPanelWidth: 1.2,
+  saltPanelHeight: 1.0,
   juniper: false,
+  juniperPanelWidth: 1.0,
+  juniperPanelDepth: 0.8,
   light: false,
   stoveEnabled: false,
   stoveType: "wood",
@@ -49,27 +57,19 @@ export const DEFAULT_CONFIG: RoomConfig = {
   benches: true,
 };
 
-// Авто-размещение соли и можжевельника
+// Авто-размещение соли (стена) и можжевельника (потолок)
 export function getAutoPlacement(config: RoomConfig): {
   saltWall: "back" | "left" | "right" | null;
-  juniperWalls: Array<"back" | "left" | "right">;
+  juniperCeiling: boolean;
 } {
-  // Соль — на самую длинную стену напротив входа (задняя)
-  // но не туда, где печь
   const stoveBack = config.stoveCorner.startsWith("back");
   const saltWall = config.salt
     ? stoveBack ? "left" : "back"
     : null;
 
-  // Можжевельник — на боковые стены (не там где дверь и не где соль)
-  const juniperWalls: Array<"back" | "left" | "right"> = [];
-  if (config.juniper) {
-    if (config.doorWall !== "left" && saltWall !== "left") juniperWalls.push("left");
-    if (config.doorWall !== "right" && saltWall !== "right") juniperWalls.push("right");
-    if (juniperWalls.length === 0 && saltWall !== "back") juniperWalls.push("back");
-  }
+  const juniperCeiling = config.juniper;
 
-  return { saltWall, juniperWalls };
+  return { saltWall, juniperCeiling };
 }
 
 export function useRoomConfig() {

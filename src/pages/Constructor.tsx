@@ -26,6 +26,10 @@ export default function Constructor() {
   const [step, setStep] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("iso");
 
+  const [showFinish, setShowFinish] = useState(false);
+  const [finishPhone, setFinishPhone] = useState("");
+  const [finishPhoneSubmitted, setFinishPhoneSubmitted] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
   const [formStep, setFormStep] = useState<"contact" | "channel" | "done">("contact");
   const [form, setForm] = useState({ name: "", phone: "" });
@@ -111,21 +115,21 @@ export default function Constructor() {
   const buildConfigText = () => {
     const woodLabel = { lipa: "Липа", olha: "Ольха", abash: "Абаш" }[config.wood];
     const extras = [
-      config.salt    && "гималайская соль",
-      config.juniper && "можжевельник",
+      config.salt    && `гималайская соль (панно ${config.saltPanelWidth}×${config.saltPanelHeight} м)`,
+      config.juniper && `можжевельник на потолке (${config.juniperPanelWidth}×${config.juniperPanelDepth} м)`,
       config.light   && "LED подсветка",
-      config.benches && "лавки",
+      config.benches && "лавки (нижний 100×45см, верхний 70×90см)",
       config.stoveEnabled && `${config.stoveType === "wood" ? "дровяная" : "электро"} печь`,
     ].filter(Boolean).join(", ");
     return [
       `Конфигурация парилки:`,
       `Размеры: ${config.width}м × ${config.depth}м × ${config.height}м`,
       `Площадь: ${(config.width * config.depth).toFixed(1)} м²`,
-      `Дерево: ${woodLabel}`,
+      `Дерево: ${woodLabel} (${config.direction === "horizontal" ? "горизонталь" : "вертикаль"})`,
       extras ? `Добавки: ${extras}` : "",
-      `Дверь: ${{ front:"передняя", left:"левая", right:"правая" }[config.doorWall]} стена`,
-      `Имя: ${form.name}`,
-      `Телефон: ${form.phone}`,
+      `Дверь: ${{ front:"передняя", left:"левая", right:"правая" }[config.doorWall]} стена (стекло)`,
+      form.name ? `Имя: ${form.name}` : "",
+      form.phone ? `Телефон: ${form.phone}` : "",
     ].filter(Boolean).join("\n");
   };
 
@@ -253,10 +257,145 @@ export default function Constructor() {
         <div className="lg:w-72 xl:w-80 border-t lg:border-t-0 lg:border-l border-gold/10 flex flex-col"
           style={{ background: "rgba(26,18,8,0.6)", maxHeight: "calc(100vh - 48px)" }}>
           <div className="flex-1 p-4 overflow-hidden flex flex-col">
-            <SidePanel config={config} onChange={update} step={step} onStep={setStep} />
+            <SidePanel config={config} onChange={update} step={step} onStep={setStep} onFinish={() => setShowFinish(true)} />
           </div>
         </div>
       </div>
+
+      {/* ── Финальный экран — получить проект ── */}
+      {showFinish && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(13,9,4,0.95)", backdropFilter: "blur(16px)" }}>
+          <div className="w-full max-w-2xl">
+
+            {!finishPhoneSubmitted ? (
+              <div className="rounded-2xl border border-gold/20 overflow-hidden"
+                style={{ background: "rgba(26,18,8,0.98)" }}>
+
+                {/* Превью 3D */}
+                <div className="relative">
+                  <canvas
+                    ref={el => {
+                      if (!el) return;
+                      const ctx2 = el.getContext("2d");
+                      if (ctx2) renderRoom(ctx2, config, el.width, el.height, "iso");
+                    }}
+                    width={860} height={340}
+                    className="w-full"
+                    style={{ maxHeight: "280px", objectFit: "contain", background: "#0D0904" }}
+                  />
+                  <div className="absolute inset-0 flex items-end p-4"
+                    style={{ background: "linear-gradient(to top, rgba(26,18,8,0.9) 0%, transparent 60%)" }}>
+                    <div>
+                      <p className="font-heading text-xl font-bold text-gold-light">Ваш проект готов</p>
+                      <p className="font-body text-sm text-white/50">
+                        {config.width}×{config.depth}×{config.height} м · {({lipa:"Липа",olha:"Ольха",abash:"Абаш"})[config.wood]}
+                        {config.salt ? " · Гим. соль" : ""}{config.juniper ? " · Можжевельник" : ""}
+                        {config.stoveEnabled ? ` · ${config.stoveType === "wood" ? "Дровяная печь" : "Электрокаменка"}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowFinish(false)}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors"
+                    style={{ background: "rgba(0,0,0,0.5)" }}>
+                    <Icon name="X" size={16} />
+                  </button>
+                </div>
+
+                {/* Форма */}
+                <div className="p-6">
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                      <Icon name="Lock" size={18} className="text-coal" />
+                    </div>
+                    <div>
+                      <p className="font-heading text-base font-bold text-white">Оставьте телефон — получите PDF</p>
+                      <p className="font-body text-sm text-white/45 mt-0.5">Пакет чертежей со всеми видами и спецификацией</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="tel"
+                      placeholder="+7 900 000-00-00"
+                      value={finishPhone}
+                      onChange={e => setFinishPhone(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-xl border border-white/10 focus:border-gold/60 outline-none font-body text-white placeholder-white/20 text-sm"
+                      style={{ background: "rgba(13,9,4,0.7)" }}
+                    />
+                    <button
+                      disabled={!finishPhone.trim() || finishPhone.length < 7}
+                      onClick={async () => {
+                        setFinishPhoneSubmitted(true);
+                        // Отправляем лид и сразу генерим PDF
+                        try {
+                          await fetch(SEND_LEAD_URL, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              name: "Из конструктора",
+                              phone: finishPhone,
+                              channel: "pdf-download",
+                              message: buildConfigText(),
+                            }),
+                          });
+                        } catch (e) { console.warn(e); }
+                        handleDownloadPdf();
+                      }}
+                      className="px-5 py-3 rounded-xl font-heading text-sm font-bold tracking-widest uppercase text-coal disabled:opacity-40 flex items-center gap-2 transition-all"
+                      style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                      <Icon name="Download" size={15} />
+                      PDF
+                    </button>
+                  </div>
+
+                  <p className="font-body text-white/20 text-xs text-center mt-3">
+                    Также можно скачать PNG или отправить проект мастеру
+                  </p>
+
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={handleDownloadPng}
+                      className="flex-1 py-2.5 rounded-xl border border-gold/25 text-gold/70 hover:bg-gold/10 font-heading text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-1.5">
+                      <Icon name="Image" size={12} />PNG
+                    </button>
+                    <button onClick={() => { setShowFinish(false); setShowForm(true); }}
+                      className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/40 hover:text-white font-heading text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-1.5">
+                      <Icon name="Send" size={12} />Отправить мастеру
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Успех */
+              <div className="rounded-2xl border border-gold/20 p-8 flex flex-col items-center text-center gap-5"
+                style={{ background: "rgba(26,18,8,0.98)" }}>
+                <div className="w-20 h-20 rounded-full flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                  <Icon name="CheckCheck" size={36} className="text-coal" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-2xl font-bold text-gold-light">PDF скачивается!</h3>
+                  <p className="font-body text-white/50 text-sm mt-2 leading-relaxed">
+                    Мастер свяжется с вами по номеру <b className="text-white/80">{finishPhone}</b> и уточнит детали по вашей парилке.
+                  </p>
+                </div>
+                <div className="w-full space-y-2">
+                  <button onClick={() => { setShowFinish(false); setFinishPhoneSubmitted(false); setFinishPhone(""); }}
+                    className="w-full py-3 rounded-xl font-heading text-sm font-bold tracking-widest uppercase text-coal"
+                    style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                    Вернуться в конструктор
+                  </button>
+                  <button onClick={() => { setShowFinish(false); setFinishPhoneSubmitted(false); setFinishPhone(""); setShowForm(true); }}
+                    className="w-full py-2.5 rounded-xl border border-white/10 text-white/40 hover:text-white font-heading text-xs tracking-widest uppercase transition-all">
+                    Отправить мастеру в мессенджер
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Модалка заявки */}
       {showForm && (
