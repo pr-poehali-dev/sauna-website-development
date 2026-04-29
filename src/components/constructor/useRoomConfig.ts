@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
 
-export type WoodType = "lipa" | "olha" | "abash";
+export type WoodType = "lipa" | "olha" | "kedr" | "abash";
 export type Direction = "horizontal" | "vertical";
 export type StoveType = "wood" | "electric";
 export type Corner = "front-left" | "front-right" | "back-left" | "back-right";
 export type DoorWall = "front" | "left" | "right";
+export type SaltWall = "back" | "left" | "right";
+export type GiftItem = "ladle" | "hat" | "broom" | "towel" | "aroma-set" | "thermometer";
 
 export interface RoomConfig {
   // Размеры (метры)
@@ -18,11 +20,12 @@ export interface RoomConfig {
 
   // Добавки
   salt: boolean;
-  saltPanelWidth: number;   // ширина панно соли, метры
-  saltPanelHeight: number;  // высота панно соли, метры
+  saltWall: SaltWall;          // стена для соли — выбор пользователя
+  saltPanelWidth: number;
+  saltPanelHeight: number;
   juniper: boolean;
-  juniperPanelWidth: number;  // ширина панно можжевельника на потолке, метры
-  juniperPanelDepth: number;  // глубина панно можжевельника на потолке, метры
+  juniperPanelWidth: number;
+  juniperPanelDepth: number;
   light: boolean;
 
   // Печь
@@ -35,6 +38,9 @@ export interface RoomConfig {
 
   // Лавки
   benches: boolean;
+
+  // Подарки
+  gifts: GiftItem[];
 }
 
 export const DEFAULT_CONFIG: RoomConfig = {
@@ -44,6 +50,7 @@ export const DEFAULT_CONFIG: RoomConfig = {
   wood: "lipa",
   direction: "horizontal",
   salt: false,
+  saltWall: "back",
   saltPanelWidth: 1.2,
   saltPanelHeight: 1.0,
   juniper: false,
@@ -55,20 +62,15 @@ export const DEFAULT_CONFIG: RoomConfig = {
   stoveCorner: "back-right",
   doorWall: "front",
   benches: true,
+  gifts: [],
 };
 
-// Авто-размещение соли (стена) и можжевельника (потолок)
 export function getAutoPlacement(config: RoomConfig): {
-  saltWall: "back" | "left" | "right" | null;
+  saltWall: SaltWall | null;
   juniperCeiling: boolean;
 } {
-  const stoveBack = config.stoveCorner.startsWith("back");
-  const saltWall = config.salt
-    ? stoveBack ? "left" : "back"
-    : null;
-
+  const saltWall = config.salt ? config.saltWall : null;
   const juniperCeiling = config.juniper;
-
   return { saltWall, juniperCeiling };
 }
 

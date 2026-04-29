@@ -5,8 +5,12 @@ import { getAutoPlacement } from "./useRoomConfig";
 const WOOD_COLORS: Record<string, { light: string; mid: string; dark: string; grain: string }> = {
   lipa:  { light: "#F2E4BE", mid: "#DDC88C", dark: "#C8AC60", grain: "#B49840" },
   olha:  { light: "#D8A870", mid: "#BC8048", dark: "#9C6028", grain: "#7C4818" },
+  kedr:  { light: "#C8896A", mid: "#A86848", dark: "#885028", grain: "#6C3818" },
   abash: { light: "#F8EED2", mid: "#E4D4A8", dark: "#D0BA7C", grain: "#BCA058" },
 };
+
+// Нейтральный цвет плитки для пола (серо-бежевый, не дерево)
+const FLOOR_COLOR = { base: "#4A4440", mid: "#3E3A36", light: "#5A5450", grout: "#2E2A28" };
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
 
@@ -70,33 +74,28 @@ function drawWoodWall(
       p1a = [lerp(tl[0], tr[0], t1), lerp(tl[1], tr[1], t1)];
       p1b = [lerp(bl[0], br[0], t1), lerp(bl[1], br[1], t1)];
     }
-
     const phase = (i + seed) % 4;
     const baseColors = [W.light, W.mid, W.dark, W.mid];
     ctx.globalAlpha = brightness;
     poly(ctx, [p0a, p0b, p1b, p1a], baseColors[phase]);
-
     const shadow = 0.04;
     const sa: [number,number] = [lerp(p1a[0], p0a[0], shadow), lerp(p1a[1], p0a[1], shadow)];
     const sb: [number,number] = [lerp(p1b[0], p0b[0], shadow), lerp(p1b[1], p0b[1], shadow)];
     poly(ctx, [sa, sb, p1b, p1a], "rgba(0,0,0,0.22)");
-
     ctx.save();
     ctx.strokeStyle = W.grain; ctx.lineWidth = 0.5; ctx.globalAlpha = brightness * 0.12;
     for (let g = 0; g < 2; g++) {
       const gt = rng(seed * 100 + i * 7 + g * 13);
       const gA: [number,number] = [lerp(p0a[0], p0b[0], gt), lerp(p0a[1], p0b[1], gt)];
       const gB: [number,number] = [lerp(p1a[0], p1b[0], gt), lerp(p1a[1], p1b[1], gt)];
-      ctx.beginPath();
-      ctx.moveTo(gA[0], gA[1]);
+      ctx.beginPath(); ctx.moveTo(gA[0], gA[1]);
       ctx.bezierCurveTo(
         lerp(gA[0], gB[0], 0.3) + (rng(seed+i*3+g)*8-4),
         lerp(gA[1], gB[1], 0.3) + (rng(seed+i*3+g+1)*4-2),
         lerp(gA[0], gB[0], 0.7) + (rng(seed+i*3+g+2)*8-4),
         lerp(gA[1], gB[1], 0.7) + (rng(seed+i*3+g+3)*4-2),
         gB[0], gB[1]
-      );
-      ctx.stroke();
+      ); ctx.stroke();
     }
     ctx.restore();
   }
@@ -105,21 +104,64 @@ function drawWoodWall(
 }
 
 // ─────────────────────────────────────────────
+//  Нейтральный пол (плитка / камень)
+// ─────────────────────────────────────────────
+function drawNeutralFloor(
+  ctx: CanvasRenderingContext2D,
+  v: (x:number,z:number,y:number)=>[number,number],
+  W: number, D: number
+) {
+  // Базовый фон
+  const corners = [v(0,0,0),v(W,0,0),v(W,D,0),v(0,D,0)];
+  poly(ctx, corners, FLOOR_COLOR.base);
+
+  // Плиточная сетка
+  const tileW = 0.4, tileD = 0.4;
+  const cols = Math.ceil(W / tileW);
+  const rows = Math.ceil(D / tileD);
+
+  for (let ri = 0; ri < rows; ri++) {
+    for (let ci = 0; ci < cols; ci++) {
+      const x0 = ci * tileW, x1 = Math.min((ci+1)*tileW, W);
+      const z0 = ri * tileD, z1 = Math.min((ri+1)*tileD, D);
+      const pts: [number,number][] = [v(x0,z0,0),v(x1,z0,0),v(x1,z1,0),v(x0,z1,0)];
+      const shade = (ci+ri) % 2 === 0 ? FLOOR_COLOR.mid : FLOOR_COLOR.light;
+      poly(ctx, pts, shade);
+      // Затирка
+      poly(ctx, pts, "transparent", FLOOR_COLOR.grout, 0.5);
+    }
+  }
+
+  // Лёгкое затемнение по краям
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(corners[0][0],corners[0][1]);
+  corners.forEach(p => ctx.lineTo(p[0],p[1]));
+  ctx.closePath();
+  const eg = ctx.createLinearGradient(v(0,0,0)[0],v(0,0,0)[1],v(W,D,0)[0],v(W,D,0)[1]);
+  eg.addColorStop(0,"rgba(0,0,0,0.25)"); eg.addColorStop(0.3,"rgba(0,0,0,0)");
+  eg.addColorStop(0.7,"rgba(0,0,0,0)"); eg.addColorStop(1,"rgba(0,0,0,0.15)");
+  ctx.fillStyle = eg; ctx.fill();
+  ctx.restore();
+
+  // Рамка
+  poly(ctx, corners, "transparent", "rgba(201,147,58,0.15)", 1);
+}
+
+// ─────────────────────────────────────────────
 //  Гималайская соль — панно с настраиваемым размером
 // ─────────────────────────────────────────────
 function drawSaltPanel(
   ctx: CanvasRenderingContext2D,
-  pts: [number,number][],   // полные координаты стены (4 угла: tl,tr,br,bl)
-  panelW: number,           // ширина панно (0..1 от стены)
-  panelH: number            // высота панно (0..1 от стены)
+  pts: [number,number][],
+  panelW: number,
+  panelH: number,
+  glowLED = false
 ) {
   const [tl, tr, br, bl] = pts;
-  // Центрируем панно на стене, прижимаем к низу (уровень пола + отступ)
-  const pw = Math.min(panelW, 0.98);
-  const ph = Math.min(panelH, 0.98);
+  const pw = Math.min(panelW, 0.98), ph = Math.min(panelH, 0.98);
   const sL = (1 - pw) / 2, sR = sL + pw;
-  const tTop = 1 - ph - 0.04;   // отступ снизу 4%
-  const tBot = 1 - 0.04;
+  const tTop = 1 - ph - 0.04, tBot = 1 - 0.04;
 
   const ptl = quadLerp(tl,tr,bl,br, sL, tTop);
   const ptr2 = quadLerp(tl,tr,bl,br, sR, tTop);
@@ -132,6 +174,15 @@ function drawSaltPanel(
   ctx.moveTo(ptl[0],ptl[1]); ctx.lineTo(ptr2[0],ptr2[1]);
   ctx.lineTo(pbr[0],pbr[1]); ctx.lineTo(pbl[0],pbl[1]);
   ctx.closePath(); ctx.clip();
+
+  // LED-подсветка соли снизу
+  if (glowLED) {
+    const grd = ctx.createLinearGradient(pbl[0],pbl[1],ptl[0],ptl[1]);
+    grd.addColorStop(0,"rgba(255,140,20,0.35)");
+    grd.addColorStop(0.35,"rgba(255,180,60,0.08)");
+    grd.addColorStop(1,"rgba(255,140,20,0)");
+    poly(ctx, panelPts, grd as unknown as string);
+  }
 
   const rows = 12, cols = 7;
   for (let row = 0; row < rows; row++) {
@@ -146,7 +197,7 @@ function drawSaltPanel(
       const c01 = quadLerp(ptl,ptr2,pbl,pbr, s0+g, t1-g);
       const hue = lerp(12, 28, rng(row*53+col*17));
       const sat = lerp(55, 80, rng(row*31+col*97));
-      const lit = lerp(48, 70, rng(row*7+col*11));
+      const lit = lerp(glowLED ? 55 : 48, glowLED ? 78 : 70, rng(row*7+col*11));
       poly(ctx, [c00,c10,c11,c01], `hsl(${hue},${sat}%,${lit}%)`);
       const cx2 = (c00[0]+c10[0]+c11[0]+c01[0])/4;
       const cy2 = (c00[1]+c10[1]+c11[1]+c01[1])/4;
@@ -164,10 +215,10 @@ function drawSaltPanel(
   }
   ctx.restore();
 
-  // Рамка панно
   ctx.save();
-  ctx.strokeStyle = "rgba(201,147,58,0.7)";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = glowLED ? "rgba(255,180,80,0.9)" : "rgba(201,147,58,0.7)";
+  ctx.lineWidth = glowLED ? 2.5 : 2;
+  if (glowLED) { ctx.shadowColor = "rgba(255,160,40,0.7)"; ctx.shadowBlur = 6; }
   ctx.beginPath();
   ctx.moveTo(panelPts[0][0], panelPts[0][1]);
   panelPts.forEach(p => ctx.lineTo(p[0], p[1]));
@@ -175,25 +226,19 @@ function drawSaltPanel(
   ctx.restore();
 }
 
-// Для обратной совместимости (плоские виды)
-function drawSaltWall(ctx: CanvasRenderingContext2D, pts: [number,number][], panelW = 1.0, panelH = 1.0) {
-  drawSaltPanel(ctx, pts, panelW, panelH);
-}
-
 // ─────────────────────────────────────────────
 //  МОЖЖЕВЕЛЬНИК — панно на потолке
 // ─────────────────────────────────────────────
 function drawJuniperCeiling(
   ctx: CanvasRenderingContext2D,
-  ceilPts: [number,number][],  // tl,tr,br,bl потолка
-  panelW: number,              // ширина панно (0..1 от потолка)
-  panelD: number,              // глубина панно (0..1 от потолка)
-  seed: number
+  ceilPts: [number,number][],
+  panelW: number,
+  panelD: number,
+  seed: number,
+  glowLED = false
 ) {
   const [tl, tr, br, bl] = ceilPts;
-  // Центрируем панно на потолке
-  const pw = Math.min(panelW, 0.98);
-  const pd = Math.min(panelD, 0.98);
+  const pw = Math.min(panelW, 0.98), pd = Math.min(panelD, 0.98);
   const sL = (1 - pw) / 2, sR = sL + pw;
   const tF = (1 - pd) / 2, tB = tF + pd;
 
@@ -234,7 +279,6 @@ function drawJuniperCeiling(
     }
   }
 
-  // Виньетка
   ctx.restore();
   ctx.save();
   ctx.beginPath();
@@ -247,10 +291,10 @@ function drawJuniperCeiling(
   ctx.fillStyle=eg; ctx.fill();
   ctx.restore();
 
-  // Рамка панно
   ctx.save();
-  ctx.strokeStyle = "rgba(100,160,80,0.7)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = glowLED ? "rgba(255,200,80,0.85)" : "rgba(100,160,80,0.7)";
+  ctx.lineWidth = glowLED ? 2.5 : 1.5;
+  if (glowLED) { ctx.shadowColor = "rgba(255,180,40,0.6)"; ctx.shadowBlur = 8; }
   ctx.setLineDash([4,3]);
   ctx.beginPath();
   ctx.moveTo(panelPts[0][0], panelPts[0][1]);
@@ -266,10 +310,8 @@ function drawJuniperSlice(ctx: CanvasRenderingContext2D, cx: number, cy: number,
   ctx.fillStyle="#3A2A10"; ctx.fill();
   ctx.strokeStyle="#2A1A08"; ctx.lineWidth=rx*0.12; ctx.stroke();
   ctx.strokeStyle="#4A3A18"; ctx.lineWidth=rx*0.06; ctx.stroke();
-
   ctx.beginPath(); ctx.ellipse(cx,cy,rx*0.88,ry*0.88,0,0,Math.PI*2);
   ctx.fillStyle="#C8A860"; ctx.fill();
-
   const rings = 4+Math.floor(rng(seed)*5);
   for (let r=rings; r>=1; r--) {
     const t=r/rings, age=1-t;
@@ -278,10 +320,8 @@ function drawJuniperSlice(ctx: CanvasRenderingContext2D, cx: number, cy: number,
     ctx.fillStyle=`hsl(${h},${s}%,${l}%)`; ctx.fill();
     ctx.strokeStyle=`rgba(0,0,0,${0.15+age*0.1})`; ctx.lineWidth=0.5; ctx.stroke();
   }
-
   ctx.beginPath(); ctx.ellipse(cx,cy,rx*0.1,ry*0.1,0,0,Math.PI*2);
   ctx.fillStyle="#1A0C04"; ctx.fill();
-
   ctx.save();
   ctx.beginPath(); ctx.ellipse(cx,cy,rx*0.87,ry*0.87,0,0,Math.PI*2); ctx.clip();
   const rayCount=4+Math.floor(rng(seed*3)*4);
@@ -293,7 +333,6 @@ function drawJuniperSlice(ctx: CanvasRenderingContext2D, cx: number, cy: number,
     ctx.lineWidth=0.4+rng(seed*2+r)*0.6; ctx.stroke();
   }
   ctx.restore();
-
   const crackCount=Math.floor(rng(seed*7)*3);
   for (let c=0; c<crackCount; c++) {
     const angle=rng(seed*11+c*17)*Math.PI*2;
@@ -302,7 +341,6 @@ function drawJuniperSlice(ctx: CanvasRenderingContext2D, cx: number, cy: number,
     ctx.lineTo(cx+Math.cos(angle)*rx*len,cy+Math.sin(angle)*ry*len);
     ctx.strokeStyle="rgba(20,8,0,0.4)"; ctx.lineWidth=0.5; ctx.stroke();
   }
-
   const sx=cx-rx*0.25, sy=cy-ry*0.3;
   const shine=ctx.createRadialGradient(sx,sy,0,sx,sy,rx*0.5);
   shine.addColorStop(0,"rgba(255,240,180,0.18)"); shine.addColorStop(1,"rgba(255,240,180,0)");
@@ -312,23 +350,36 @@ function drawJuniperSlice(ctx: CanvasRenderingContext2D, cx: number, cy: number,
 }
 
 // ─────────────────────────────────────────────
-//  LED подсветка
+//  LED — только под верхним полком, подспинником и на панно
 // ─────────────────────────────────────────────
-function drawLED(ctx: CanvasRenderingContext2D, pts: [number,number][]) {
-  const [,,br,bl]=pts;
+function drawLEDStrip(
+  ctx: CanvasRenderingContext2D,
+  x0: [number,number], x1: [number,number],
+  intensity = 0.6
+) {
   ctx.save();
-  const grd=ctx.createLinearGradient((bl[0]+br[0])/2,Math.min(bl[1],br[1])-60,(bl[0]+br[0])/2,Math.max(bl[1],br[1]));
-  grd.addColorStop(0,"rgba(255,140,20,0)"); grd.addColorStop(0.5,"rgba(255,140,20,0.15)"); grd.addColorStop(1,"rgba(255,200,50,0.5)");
-  ctx.beginPath(); ctx.moveTo(bl[0],bl[1]); ctx.lineTo(br[0],br[1]); ctx.lineTo(br[0],br[1]-60); ctx.lineTo(bl[0],bl[1]-60);
+  const grd = ctx.createLinearGradient(
+    (x0[0]+x1[0])/2, Math.min(x0[1],x1[1]) - 40,
+    (x0[0]+x1[0])/2, Math.max(x0[1],x1[1])
+  );
+  grd.addColorStop(0,"rgba(255,140,20,0)");
+  grd.addColorStop(0.4,`rgba(255,140,20,${intensity*0.25})`);
+  grd.addColorStop(1,`rgba(255,200,50,${intensity*0.8})`);
+  ctx.beginPath();
+  ctx.moveTo(x0[0],x0[1]); ctx.lineTo(x1[0],x1[1]);
+  ctx.lineTo(x1[0],x1[1]-50); ctx.lineTo(x0[0],x0[1]-50);
   ctx.closePath(); ctx.fillStyle=grd; ctx.fill();
-  ctx.beginPath(); ctx.moveTo(bl[0],bl[1]-2); ctx.lineTo(br[0],br[1]-2);
-  ctx.strokeStyle="#FFE060"; ctx.lineWidth=2; ctx.stroke();
+  // Сама лента
+  ctx.beginPath(); ctx.moveTo(x0[0],x0[1]-1); ctx.lineTo(x1[0],x1[1]-1);
+  ctx.strokeStyle=`rgba(255,220,60,${0.7+intensity*0.3})`; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.shadowColor="rgba(255,200,50,0.8)"; ctx.shadowBlur=6; ctx.stroke();
+  ctx.shadowBlur=0;
   for (let i=0; i<=8; i++) {
     const t=i/8;
-    const px=lerp(bl[0],br[0],t), py=lerp(bl[1],br[1],t)-2;
-    const sg=ctx.createRadialGradient(px,py,0,px,py,18);
-    sg.addColorStop(0,"rgba(255,220,60,0.6)"); sg.addColorStop(1,"rgba(255,220,60,0)");
-    ctx.beginPath(); ctx.arc(px,py,18,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
+    const px=lerp(x0[0],x1[0],t), py=lerp(x0[1],x1[1],t)-1;
+    const sg=ctx.createRadialGradient(px,py,0,px,py,14);
+    sg.addColorStop(0,`rgba(255,220,60,${0.5*intensity})`); sg.addColorStop(1,"rgba(255,220,60,0)");
+    ctx.beginPath(); ctx.arc(px,py,14,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
   }
   ctx.restore();
 }
@@ -393,7 +444,7 @@ function drawStove(
 }
 
 // ─────────────────────────────────────────────
-//  Дверь — стеклянная прозрачная
+//  Дверь — стеклянная 70×190 см
 // ─────────────────────────────────────────────
 function drawDoor(
   ctx: CanvasRenderingContext2D,
@@ -402,7 +453,7 @@ function drawDoor(
   isoY: (x:number,z:number,y:number)=>number,
   W: number, D: number
 ) {
-  const dw=0.75, dh=1.95, e=0.03;
+  const dw=0.70, dh=1.90, e=0.03;
   const v=(x:number,z:number,y:number):[number,number]=>[isoX(x,z),isoY(x,z,y)];
   let face:[number,number,number][];
   if (wall==="front")     face=[[W/2-dw/2,e,0],[W/2+dw/2,e,0],[W/2+dw/2,e,dh],[W/2-dw/2,e,dh]];
@@ -410,100 +461,156 @@ function drawDoor(
   else                    face=[[W-e,D/2-dw/2,0],[W-e,D/2+dw/2,0],[W-e,D/2+dw/2,dh],[W-e,D/2-dw/2,dh]];
   const f=face.map(([x,z,y])=>v(x,z,y)) as [number,number][];
 
-  // Рамка двери (тонкий металл/алюминий)
-  poly(ctx,f,"transparent","rgba(180,200,220,0.85)",2.5);
+  // Ольховый короб (рамка)
+  const W2 = WOOD_COLORS.olha;
+  const frameW = 4;
+  ctx.save();
+  ctx.strokeStyle = W2.mid; ctx.lineWidth = frameW * 2;
+  ctx.beginPath();
+  ctx.moveTo(f[0][0],f[0][1]); f.forEach(p=>ctx.lineTo(p[0],p[1]));
+  ctx.closePath(); ctx.stroke();
+  ctx.strokeStyle = W2.dark; ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
 
-  // Стекло — полупрозрачное синеватое
+  // Стекло
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(f[0][0],f[0][1]);
-  f.forEach(p=>ctx.lineTo(p[0],p[1]));
+  ctx.moveTo(f[0][0],f[0][1]); f.forEach(p=>ctx.lineTo(p[0],p[1]));
   ctx.closePath();
-  ctx.fillStyle="rgba(140,190,220,0.18)"; ctx.fill();
-
-  // Блик на стекле — диагональная полоса
-  const gx0=lerp(f[0][0],f[1][0],0.15), gy0=lerp(f[0][1],f[3][1],0.1);
-  const gx1=lerp(f[0][0],f[1][0],0.45), gy1=lerp(f[0][1],f[3][1],0.55);
+  ctx.fillStyle="rgba(140,190,220,0.2)"; ctx.fill();
+  const gx0=lerp(f[0][0],f[1][0],0.12), gy0=lerp(f[0][1],f[3][1],0.08);
+  const gx1=lerp(f[0][0],f[1][0],0.42), gy1=lerp(f[0][1],f[3][1],0.52);
   const glassShine=ctx.createLinearGradient(gx0,gy0,gx1,gy1);
   glassShine.addColorStop(0,"rgba(255,255,255,0)");
-  glassShine.addColorStop(0.4,"rgba(255,255,255,0.18)");
+  glassShine.addColorStop(0.4,"rgba(255,255,255,0.20)");
   glassShine.addColorStop(1,"rgba(255,255,255,0)");
   ctx.fillStyle=glassShine; ctx.fill();
   ctx.restore();
 
-  // Импост — горизонтальный профиль посередине
+  // Импост — горизонтальный профиль
   const midL=quadLerp(f[0],f[1],f[3],f[2],0,0.48);
   const midR=quadLerp(f[0],f[1],f[3],f[2],1,0.48);
   ctx.beginPath(); ctx.moveTo(midL[0],midL[1]); ctx.lineTo(midR[0],midR[1]);
   ctx.strokeStyle="rgba(180,200,220,0.7)"; ctx.lineWidth=1.5; ctx.stroke();
 
-  // Ручка
-  const handle=quadLerp(f[0],f[1],f[3],f[2],0.82,0.42);
-  ctx.beginPath(); ctx.arc(handle[0],handle[1],3.5,0,Math.PI*2);
-  ctx.fillStyle="#B0C8D8"; ctx.fill();
-  ctx.strokeStyle="rgba(100,140,160,0.8)"; ctx.lineWidth=0.8; ctx.stroke();
+  // Ручка снаружи (алюминий — серебристая)
+  const handleOut=quadLerp(f[0],f[1],f[3],f[2],0.85,0.42);
+  ctx.beginPath(); ctx.arc(handleOut[0],handleOut[1],3.5,0,Math.PI*2);
+  ctx.fillStyle="#C0C8D0"; ctx.fill();
+  ctx.strokeStyle="rgba(80,100,110,0.8)"; ctx.lineWidth=0.8; ctx.stroke();
 }
 
 // ─────────────────────────────────────────────
-//  Лавки — верхний 70cm/90cm, нижний 100cm/45cm
+//  Лавки + подспинник — на ВСЮ длину стены
 // ─────────────────────────────────────────────
 function drawBenches(
   ctx: CanvasRenderingContext2D,
   isoX: (x:number,z:number)=>number,
   isoY: (x:number,z:number,y:number)=>number,
-  W: number, D: number, wood: string
+  W: number, D: number, wood: string,
+  light: boolean
 ) {
   const W2=WOOD_COLORS[wood]||WOOD_COLORS.lipa;
   const v=(x:number,z:number,y:number):[number,number]=>[isoX(x,z),isoY(x,z,y)];
 
-  // Нижний полок: ширина 1.0м, высота 0.45м
-  const lowerW = Math.min(1.0, W - 0.2);
+  // Параметры полков — на всю ширину помещения
+  const margin = 0.05;
+  const bX0 = margin, bX1 = W - margin;
+
+  // Нижний полок: ширина 1.0м (глубина), высота 0.45м
+  const lowerDepth = 1.0;
   const lowerH = 0.45;
-  const lowerDepth = 0.55;  // глубина сиденья
-  const lowerX = (W - lowerW) / 2;
+  const lZ0 = D - lowerDepth, lZ1 = D;
 
-  // Верхний полок: ширина 0.70м, высота 0.90м (верхняя грань)
-  const upperW = Math.min(0.70, W - 0.2);
+  // Верхний полок: ширина 0.70м (глубина), высота 0.90м (верх)
+  const upperDepth = 0.70;
   const upperH = 0.90;
-  const upperDepth = 0.45;  // глубина сиденья
-  const upperX = (W - upperW) / 2;
-  const upperY0 = 0.48;  // нижняя кромка
+  const upperY0 = 0.50;
+  const uZ0 = D - upperDepth, uZ1 = D;
 
-  const drawBench=(x0:number,w:number,depth:number,y0:number,y1:number,stripes:number)=>{
-    const z0=D-depth, z1=D;
-    const faces:[number,number,number][][][]=[
-      [[[x0,z0,y1],[x0+w,z0,y1],[x0+w,z1,y1],[x0,z1,y1]]],       // верх
-      [[[x0,z0,y0],[x0+w,z0,y0],[x0+w,z0,y1],[x0,z0,y1]]],        // перед
-      [[[x0+w,z0,y0],[x0+w,z1,y0],[x0+w,z1,y1],[x0+w,z0,y1]]],    // право
-    ];
-    const faceColors=[W2.mid,W2.dark,W2.light];
-    faces.forEach((faceGroup,fi)=>{
-      faceGroup.forEach(face=>{
-        const pts=face.map(([fx,fz,fy])=>v(fx,fz,fy)) as [number,number][];
-        poly(ctx,pts,faceColors[fi],"rgba(0,0,0,0.22)",0.7);
-        if (fi===0) {
-          for(let i=0;i<stripes;i++){
-            const t0=i/stripes,t1=(i+1)/stripes;
-            const p=[quadLerp(pts[0],pts[1],pts[3],pts[2],t0+0.01,0.05),
-                     quadLerp(pts[0],pts[1],pts[3],pts[2],t1-0.01,0.05),
-                     quadLerp(pts[0],pts[1],pts[3],pts[2],t1-0.01,0.95),
-                     quadLerp(pts[0],pts[1],pts[3],pts[2],t0+0.01,0.95)] as [number,number][];
-            poly(ctx,p,i%2===0?W2.light:W2.mid);
-            poly(ctx,p,"transparent","rgba(0,0,0,0.12)",0.3);
-          }
-        }
-      });
-    });
-    // Ноги
-    [[x0+0.08,z0+0.06],[x0+w-0.08,z0+0.06],[x0+0.08,z1-0.08],[x0+w-0.08,z1-0.08]].forEach(([lx,lz])=>{
-      const top=v(lx,lz,y0+0.02), bot=v(lx,lz,0);
-      ctx.beginPath(); ctx.moveTo(top[0],top[1]); ctx.lineTo(bot[0],bot[1]);
-      ctx.strokeStyle=W2.dark; ctx.lineWidth=3; ctx.stroke();
-    });
+  // Подспинник: высота 1.15м, ширина 0.30м (глубина), на всю длину
+  const backH1 = 1.15, backH2 = 1.15 + 0.30;
+  const bZ0 = D - 0.06, bZ1 = D;
+
+  const drawBench = (x0:number, x1:number, z0:number, z1:number, y0:number, y1:number) => {
+    const top:[number,number][] = [v(x0,z0,y1),v(x1,z0,y1),v(x1,z1,y1),v(x0,z1,y1)];
+    const front:[number,number][] = [v(x0,z0,y0),v(x1,z0,y0),v(x1,z0,y1),v(x0,z0,y1)];
+    const right:[number,number][] = [v(x1,z0,y0),v(x1,z1,y0),v(x1,z1,y1),v(x1,z0,y1)];
+
+    poly(ctx, top, W2.mid, "rgba(0,0,0,0.2)", 0.5);
+    poly(ctx, front, W2.dark, "rgba(0,0,0,0.2)", 0.5);
+    poly(ctx, right, W2.light, "rgba(0,0,0,0.15)", 0.5);
+
+    // Доски на верхней грани
+    const boards = Math.round((x1-x0) / 0.09);
+    for (let i=0; i<boards; i++) {
+      const t0=i/boards, t1=(i+1)/boards;
+      const p=[quadLerp(top[0],top[1],top[3],top[2],t0+0.01,0.05),
+               quadLerp(top[0],top[1],top[3],top[2],t1-0.01,0.05),
+               quadLerp(top[0],top[1],top[3],top[2],t1-0.01,0.95),
+               quadLerp(top[0],top[1],top[3],top[2],t0+0.01,0.95)] as [number,number][];
+      poly(ctx, p, i%2===0 ? W2.light : W2.mid);
+      poly(ctx, p, "transparent", "rgba(0,0,0,0.1)", 0.3);
+    }
+    // Ноги каждые ~60см
+    const legSpacing = 0.6;
+    const legCount = Math.max(2, Math.round((x1-x0) / legSpacing));
+    for (let li=0; li<=legCount; li++) {
+      const lx = x0 + (x1-x0)*(li/legCount);
+      const topL=v(lx,z0+0.05,y0+0.02), botL=v(lx,z0+0.05,0);
+      ctx.beginPath(); ctx.moveTo(topL[0],topL[1]); ctx.lineTo(botL[0],botL[1]);
+      ctx.strokeStyle=W2.dark; ctx.lineWidth=2.5; ctx.stroke();
+    }
   };
 
-  drawBench(lowerX, lowerW, lowerDepth, 0, lowerH, 4);          // нижний: 100cm ширина, 45cm высота
-  drawBench(upperX, upperW, upperDepth, upperY0, upperH, 3);     // верхний: 70cm ширина, 90cm высота
+  // Рисуем нижний полок
+  drawBench(bX0, bX1, lZ0, lZ1, 0, lowerH);
+
+  // Рисуем верхний полок
+  drawBench(bX0, bX1, uZ0, uZ1, upperY0, upperH);
+
+  // LED под верхним полком (передняя кромка верхнего полка)
+  if (light) {
+    const ledL = v(bX0, uZ0, upperH);
+    const ledR = v(bX1, uZ0, upperH);
+    drawLEDStrip(ctx, ledL, ledR, 0.8);
+  }
+
+  // Подспинник — рейки на высоте 1.15–1.45м, у задней стены
+  const backTop:[number,number][] = [v(bX0,bZ0,backH2),v(bX1,bZ0,backH2),v(bX1,bZ1,backH2),v(bX0,bZ1,backH2)];
+  const backFront:[number,number][] = [v(bX0,bZ0,backH1),v(bX1,bZ0,backH1),v(bX1,bZ0,backH2),v(bX0,bZ0,backH2)];
+  poly(ctx, backTop, W2.mid, "rgba(0,0,0,0.15)", 0.4);
+  poly(ctx, backFront, W2.light, "rgba(0,0,0,0.18)", 0.5);
+
+  // Горизонтальные рейки подспинника
+  const railCount = 4;
+  for (let ri=0; ri<railCount; ri++) {
+    const t0=ri/railCount+0.02, t1=(ri+1)/railCount-0.02;
+    const p=[quadLerp(backFront[0],backFront[1],backFront[3],backFront[2],0,t0),
+             quadLerp(backFront[0],backFront[1],backFront[3],backFront[2],1,t0),
+             quadLerp(backFront[0],backFront[1],backFront[3],backFront[2],1,t1),
+             quadLerp(backFront[0],backFront[1],backFront[3],backFront[2],0,t1)] as [number,number][];
+    poly(ctx, p, ri%2===0 ? W2.light : W2.mid, "rgba(0,0,0,0.1)", 0.3);
+  }
+
+  // LED под подспинником
+  if (light) {
+    const sL = v(bX0, bZ0, backH1);
+    const sR = v(bX1, bZ0, backH1);
+    drawLEDStrip(ctx, sL, sR, 0.6);
+  }
+
+  // Подписи высот
+  const lbl1 = v(bX1 + 0.08, lZ0 + lowerDepth/2, lowerH/2);
+  const lbl2 = v(bX1 + 0.08, uZ0 + upperDepth/2, upperY0 + (upperH-upperY0)/2);
+  const lbl3 = v(bX1 + 0.08, bZ0, backH1 + 0.15);
+  ctx.save();
+  ctx.fillStyle="rgba(201,147,58,0.7)"; ctx.font="9px Arial"; ctx.textAlign="left";
+  ctx.fillText("▸ 45 см", lbl1[0], lbl1[1]);
+  ctx.fillText("▸ 90 см", lbl2[0], lbl2[1]);
+  ctx.fillText("▸ подспинник", lbl3[0], lbl3[1]);
+  ctx.restore();
 }
 
 // ─────────────────────────────────────────────
@@ -529,31 +636,17 @@ export function renderRoom(
     const isoY=(x:number,z:number,y:number)=>oy-y*scale*0.82+(x+z)*scale*0.25;
     const v=(x:number,z:number,y:number):[number,number]=>[isoX(x,z),isoY(x,z,y)];
 
-    // Пол
-    const floor=[v(0,0,0),v(W,0,0),v(W,D,0),v(0,D,0)];
-    const fg2=ctx.createLinearGradient(v(0,0,0)[0],v(0,0,0)[1],v(W,D,0)[0],v(W,D,0)[1]);
-    fg2.addColorStop(0,"#2A1E10"); fg2.addColorStop(1,"#1A1208");
-    poly(ctx,floor,fg2 as unknown as string,"rgba(201,147,58,0.15)",1);
-    ctx.fillStyle=fg2; ctx.fill();
-    const rows2=Math.ceil(D*5);
-    for(let i=0;i<rows2;i++){
-      const t0=i/rows2,t1=(i+1)/rows2;
-      const Wc=WOOD_COLORS[config.wood]||WOOD_COLORS.lipa;
-      const p=[v(0,t0*D,0),v(W,t0*D,0),v(W,t1*D,0),v(0,t1*D,0)];
-      poly(ctx,p,i%2===0?Wc.dark+"99":Wc.mid+"88");
-      poly(ctx,p,"transparent","rgba(0,0,0,0.1)",0.4);
-    }
+    // Нейтральный пол (плитка)
+    drawNeutralFloor(ctx, v, W, D);
 
-    // Потолок — сначала дерево
+    // Потолок
     const ceilPts:[number,number][]=[v(0,0,H),v(W,0,H),v(W,D,H),v(0,D,H)];
     drawWoodWall(ctx,ceilPts,config.wood,dir,13,0.55);
-    // Можжевельник на потолке
     if(juniperCeiling) {
       const jw = Math.min(config.juniperPanelWidth / W, 0.95);
       const jd = Math.min(config.juniperPanelDepth / D, 0.95);
-      drawJuniperCeiling(ctx, ceilPts, jw, jd, 7);
+      drawJuniperCeiling(ctx, ceilPts, jw, jd, 7, config.light);
     }
-    // Затемнение потолка сверху
     poly(ctx,ceilPts,"rgba(13,9,4,0.45)","rgba(201,147,58,0.12)",1);
 
     // Задняя стена
@@ -562,9 +655,8 @@ export function renderRoom(
       if(saltWall==="back") {
         const pw = Math.min(config.saltPanelWidth / W, 0.95);
         const ph = Math.min(config.saltPanelHeight / H, 0.95);
-        drawSaltPanel(ctx,pts,pw,ph);
+        drawSaltPanel(ctx,pts,pw,ph,config.light);
       }
-      if(config.light) drawLED(ctx,pts);
       poly(ctx,pts,"transparent","rgba(0,0,0,0.2)",1.5); }
 
     // Левая стена
@@ -573,9 +665,8 @@ export function renderRoom(
       if(saltWall==="left") {
         const pw = Math.min(config.saltPanelWidth / D, 0.95);
         const ph = Math.min(config.saltPanelHeight / H, 0.95);
-        drawSaltPanel(ctx,pts,pw,ph);
+        drawSaltPanel(ctx,pts,pw,ph,config.light);
       }
-      if(config.light) drawLED(ctx,pts);
       poly(ctx,pts,"transparent","rgba(0,0,0,0.15)",1); }
 
     // Правая стена
@@ -584,16 +675,15 @@ export function renderRoom(
       if(saltWall==="right") {
         const pw = Math.min(config.saltPanelWidth / D, 0.95);
         const ph = Math.min(config.saltPanelHeight / H, 0.95);
-        drawSaltPanel(ctx,pts,pw,ph);
+        drawSaltPanel(ctx,pts,pw,ph,config.light);
       }
-      if(config.light) drawLED(ctx,pts);
       poly(ctx,pts,"transparent","rgba(0,0,0,0.12)",1); }
 
     // Передняя (прозрачная)
     poly(ctx,[v(0,0,H),v(W,0,H),v(W,0,0),v(0,0,0)],"rgba(13,9,4,0.12)","rgba(201,147,58,0.08)",1);
 
-    // Лавки
-    if(config.benches) drawBenches(ctx,isoX,isoY,W,D,config.wood);
+    // Лавки + подспинник
+    if(config.benches) drawBenches(ctx,isoX,isoY,W,D,config.wood,config.light);
 
     // Печь и дверь
     if(config.stoveEnabled) drawStove(ctx,config.stoveCorner,config.stoveType,isoX,isoY,W,D,H);
@@ -613,12 +703,12 @@ export function renderRoom(
     const hm=v(0,0,H/2); ctx.fillText(`${H.toFixed(1)}м`,hm[0]-20,hm[1]);
 
     // Легенда
-    const legend:[string,string][]=[[ {lipa:"Липа",olha:"Ольха",abash:"Абаш"}[config.wood]||"","#C9933A"]];
-    if(config.salt)         legend.push([`Гим. соль ${config.saltPanelWidth}×${config.saltPanelHeight}м`,"#E8906A"]);
-    if(config.juniper)      legend.push([`Можжевельник на потолке ${config.juniperPanelWidth}×${config.juniperPanelDepth}м`,"#5A9A40"]);
-    if(config.light)        legend.push(["LED подсветка","#FFD060"]);
+    const legend:[string,string][]=[[ {lipa:"Липа",olha:"Ольха",kedr:"Кедр",abash:"Абаш"}[config.wood]||"","#C9933A"]];
+    if(config.salt)         legend.push([`Гим. соль (${({back:"зад",left:"лево",right:"право"})[saltWall||"back"]}) ${config.saltPanelWidth}×${config.saltPanelHeight}м`,"#E8906A"]);
+    if(config.juniper)      legend.push([`Можжевельник потолок ${config.juniperPanelWidth}×${config.juniperPanelDepth}м`,"#5A9A40"]);
+    if(config.light)        legend.push(["LED: полок + подспинник" + (config.salt?" + соль":"") + (config.juniper?" + можж.":""),"#FFD060"]);
     if(config.stoveEnabled) legend.push([config.stoveType==="wood"?"Дровяная печь":"Электрокаменка","#A06040"]);
-    if(config.benches)      legend.push(["Полки: 70×90 / 100×45 см","#8A6030"]);
+    if(config.benches)      legend.push(["Полки + подспинник 115 см","#8A6030"]);
     legend.forEach(([label,color],i)=>{
       ctx.fillStyle=color; ctx.fillRect(12,16+i*18,10,10);
       ctx.fillStyle="rgba(255,255,255,0.75)"; ctx.font="10px Arial"; ctx.textAlign="left";
@@ -642,30 +732,41 @@ function renderFlatView(
   const { saltWall } = getAutoPlacement(config);
   const dir=config.direction==="horizontal"?"h":"v";
   const pad=60;
+  const Wc=WOOD_COLORS[config.wood]||WOOD_COLORS.lipa;
 
   if (view==="top") {
     const sc=Math.min((cw-pad*2)/W,(ch-pad*2)/D);
     const offX=(cw-W*sc)/2, offZ=(ch-D*sc)/2;
     const toX=(x:number)=>offX+x*sc, toZ=(z:number)=>offZ+z*sc;
 
-    ctx.fillStyle="#2A1E10"; ctx.fillRect(toX(0),toZ(0),W*sc,D*sc);
+    // Плитка пола
+    ctx.fillStyle=FLOOR_COLOR.base; ctx.fillRect(toX(0),toZ(0),W*sc,D*sc);
+    const tileS=0.4*sc;
+    for(let ri=0; ri*tileS<D*sc; ri++) {
+      for(let ci=0; ci*tileS<W*sc; ci++) {
+        ctx.fillStyle=(ri+ci)%2===0?FLOOR_COLOR.mid:FLOOR_COLOR.light;
+        ctx.fillRect(toX(0)+ci*tileS,toZ(0)+ri*tileS,tileS,tileS);
+        ctx.strokeStyle=FLOOR_COLOR.grout; ctx.lineWidth=0.4;
+        ctx.strokeRect(toX(0)+ci*tileS,toZ(0)+ri*tileS,tileS,tileS);
+      }
+    }
 
     if(config.benches){
-      const Wc=WOOD_COLORS[config.wood]||WOOD_COLORS.lipa;
-      // Нижний полок
-      const lw=Math.min(1.0,W-0.2);
-      const lx=(W-lw)/2;
+      // Нижний полок (100см глубина)
       ctx.fillStyle=Wc.mid;
-      ctx.fillRect(toX(lx),toZ(D-0.55),lw*sc,0.55*sc);
+      ctx.fillRect(toX(0.05),toZ(D-1.0),(W-0.1)*sc,1.0*sc);
       ctx.strokeStyle="rgba(0,0,0,0.3)"; ctx.lineWidth=1;
-      ctx.strokeRect(toX(lx),toZ(D-0.55),lw*sc,0.55*sc);
-      // Верхний полок
-      const uw=Math.min(0.70,W-0.2);
-      const ux=(W-uw)/2;
+      ctx.strokeRect(toX(0.05),toZ(D-1.0),(W-0.1)*sc,1.0*sc);
+      // Верхний полок (70см глубина)
       ctx.fillStyle=Wc.light;
-      ctx.fillRect(toX(ux),toZ(D-0.45-0.45),uw*sc,0.45*sc);
+      ctx.fillRect(toX(0.05),toZ(D-0.70),(W-0.1)*sc,0.70*sc);
       ctx.strokeStyle="rgba(0,0,0,0.3)"; ctx.lineWidth=1;
-      ctx.strokeRect(toX(ux),toZ(D-0.45-0.45),uw*sc,0.45*sc);
+      ctx.strokeRect(toX(0.05),toZ(D-0.70),(W-0.1)*sc,0.70*sc);
+      // Подспинник
+      ctx.fillStyle=Wc.dark;
+      ctx.fillRect(toX(0.05),toZ(D-0.06),(W-0.1)*sc,0.06*sc);
+      ctx.fillStyle="rgba(255,255,255,0.5)"; ctx.font="9px Arial"; ctx.textAlign="center";
+      ctx.fillText("Подспинник",toX(W/2),toZ(D)+8);
     }
 
     if(config.stoveEnabled){
@@ -679,14 +780,12 @@ function renderFlatView(
       ctx.fillText("ПЕЧЬ",toX(sx+ss/2),toZ(sz2+ss/2)+4);
     }
 
-    // Дверь
     ctx.strokeStyle="#B0C8D8"; ctx.lineWidth=5;
-    if(config.doorWall==="front"){ctx.beginPath();ctx.moveTo(toX(W/2-0.375),toZ(0));ctx.lineTo(toX(W/2+0.375),toZ(0));ctx.stroke();}
-    else if(config.doorWall==="left"){ctx.beginPath();ctx.moveTo(toX(0),toZ(D/2-0.375));ctx.lineTo(toX(0),toZ(D/2+0.375));ctx.stroke();}
-    else{ctx.beginPath();ctx.moveTo(toX(W),toZ(D/2-0.375));ctx.lineTo(toX(W),toZ(D/2+0.375));ctx.stroke();}
+    if(config.doorWall==="front"){ctx.beginPath();ctx.moveTo(toX(W/2-0.35),toZ(0));ctx.lineTo(toX(W/2+0.35),toZ(0));ctx.stroke();}
+    else if(config.doorWall==="left"){ctx.beginPath();ctx.moveTo(toX(0),toZ(D/2-0.35));ctx.lineTo(toX(0),toZ(D/2+0.35));ctx.stroke();}
+    else{ctx.beginPath();ctx.moveTo(toX(W),toZ(D/2-0.35));ctx.lineTo(toX(W),toZ(D/2+0.35));ctx.stroke();}
 
     ctx.strokeStyle="#C9933A"; ctx.lineWidth=3; ctx.strokeRect(toX(0),toZ(0),W*sc,D*sc);
-
     drawDimLabel(ctx,toX(0),ch-30,toX(W),ch-30,`${W.toFixed(1)} м`,false);
     drawDimLabel(ctx,pad/2,toZ(0),pad/2,toZ(D),`${D.toFixed(1)} м`,true);
     drawViewTitle(ctx,"ВИД СВЕРХУ (ПЛАН)",cw);
@@ -707,42 +806,55 @@ function renderFlatView(
   if(hasSalt) {
     const pw = Math.min(config.saltPanelWidth / wallW, 0.95);
     const ph = Math.min(config.saltPanelHeight / H, 0.95);
-    drawSaltWall(ctx,[tl,tr,br,bl],pw,ph);
+    drawSaltPanel(ctx,[tl,tr,br,bl],pw,ph,config.light);
   }
-  if(config.light) drawLED(ctx,[tl,tr,br,bl]);
 
-  // Лавки
+  // Полки + подспинник в сечении
   if(config.benches&&view!=="front"){
-    const Wc=WOOD_COLORS[config.wood]||WOOD_COLORS.lipa;
-    const lowerH=0.45*sc, upperH=0.90*sc;
     ctx.fillStyle=Wc.mid;
-    ctx.fillRect(offX+5, offY+wallH*sc-lowerH, wallW*sc-10, 0.06*sc);
-    ctx.fillRect(offX+5, offY+wallH*sc-upperH, wallW*sc-10, 0.06*sc);
+    // Нижний полок
+    ctx.fillRect(offX+5, offY+wallH*sc-0.45*sc, wallW*sc-10, 0.06*sc);
+    // Верхний полок
+    ctx.fillRect(offX+5, offY+wallH*sc-0.90*sc, wallW*sc-10, 0.06*sc);
+    // Подспинник
+    ctx.fillStyle=Wc.light;
+    ctx.fillRect(offX+wallW*sc-8, offY+wallH*sc-1.45*sc, 6, (1.45-1.15)*sc);
     ctx.strokeStyle="rgba(0,0,0,0.2)"; ctx.lineWidth=0.5;
-    ctx.strokeRect(offX+5, offY+wallH*sc-lowerH, wallW*sc-10, 0.06*sc);
-    ctx.strokeRect(offX+5, offY+wallH*sc-upperH, wallW*sc-10, 0.06*sc);
-    // Подпись
+    ctx.strokeRect(offX+wallW*sc-8, offY+wallH*sc-1.45*sc, 6, (1.45-1.15)*sc);
     ctx.fillStyle="rgba(201,147,58,0.7)"; ctx.font="9px Arial"; ctx.textAlign="left";
-    ctx.fillText("▸ 45 см",offX+wallW*sc+4,offY+wallH*sc-lowerH+4);
-    ctx.fillText("▸ 90 см",offX+wallW*sc+4,offY+wallH*sc-upperH+4);
+    ctx.fillText("▸ 45",offX+wallW*sc+4,offY+wallH*sc-0.45*sc+4);
+    ctx.fillText("▸ 90",offX+wallW*sc+4,offY+wallH*sc-0.90*sc+4);
+    ctx.fillText("▸ 115 подспинник",offX+wallW*sc+4,offY+wallH*sc-1.15*sc+4);
+
+    // LED
+    if(config.light) {
+      ctx.beginPath();
+      ctx.moveTo(offX+5, offY+wallH*sc-0.90*sc);
+      ctx.lineTo(offX+wallW*sc-5, offY+wallH*sc-0.90*sc);
+      ctx.strokeStyle="rgba(255,220,60,0.8)"; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(offX+5, offY+wallH*sc-1.15*sc);
+      ctx.lineTo(offX+wallW*sc-5, offY+wallH*sc-1.15*sc);
+      ctx.strokeStyle="rgba(255,220,60,0.6)"; ctx.lineWidth=1.5; ctx.stroke();
+    }
   }
 
-  // Дверь на передней — стеклянная
+  // Дверь на передней — стеклянная 70×190
   if(view==="front"&&config.doorWall==="front"){
-    const dw2=0.75*sc,dh2=1.95*sc;
-    const dx=offX+(wallW/2-0.375)*sc, dy=offY+wallH*sc-dh2;
+    const dw2=0.70*sc, dh2=1.90*sc;
+    const dx=offX+(wallW/2-0.35)*sc, dy=offY+wallH*sc-dh2;
     ctx.fillStyle="rgba(140,190,220,0.22)"; ctx.fillRect(dx,dy,dw2,dh2);
-    ctx.strokeStyle="rgba(180,200,220,0.9)"; ctx.lineWidth=2; ctx.strokeRect(dx,dy,dw2,dh2);
-    // Импост
+    // Ольховый короб
+    ctx.strokeStyle=WOOD_COLORS.olha.mid; ctx.lineWidth=6; ctx.strokeRect(dx,dy,dw2,dh2);
+    ctx.strokeStyle="rgba(180,200,220,0.9)"; ctx.lineWidth=1.5; ctx.strokeRect(dx,dy,dw2,dh2);
     ctx.beginPath(); ctx.moveTo(dx,dy+dh2*0.48); ctx.lineTo(dx+dw2,dy+dh2*0.48);
     ctx.strokeStyle="rgba(180,200,220,0.6)"; ctx.lineWidth=1.2; ctx.stroke();
     ctx.beginPath(); ctx.arc(dx+dw2*0.85,dy+dh2*0.44,3.5,0,Math.PI*2);
-    ctx.fillStyle="#B0C8D8"; ctx.fill();
+    ctx.fillStyle="#C0C8D0"; ctx.fill();
   }
 
   ctx.strokeStyle="rgba(201,147,58,0.5)"; ctx.lineWidth=2;
   ctx.strokeRect(offX,offY,wallW*sc,wallH*sc);
-
   drawDimLabel(ctx,offX,ch-25,offX+wallW*sc,ch-25,`${wallW.toFixed(1)} м`,false);
   drawDimLabel(ctx,pad/2,offY,pad/2,offY+wallH*sc,`${wallH.toFixed(1)} м`,true);
   drawViewTitle(ctx,wallNames[view],cw);

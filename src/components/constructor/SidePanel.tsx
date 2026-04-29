@@ -1,5 +1,5 @@
 import Icon from "@/components/ui/icon";
-import type { RoomConfig, WoodType, Direction, StoveType, Corner, DoorWall } from "./useRoomConfig";
+import type { RoomConfig, WoodType, Direction, StoveType, Corner, DoorWall, SaltWall, GiftItem } from "./useRoomConfig";
 import { getAutoPlacement } from "./useRoomConfig";
 
 interface SidePanelProps {
@@ -85,9 +85,10 @@ function SliderRow({ label, value, min, max, step, unit, onChange }: {
 }
 
 const WOOD_OPTIONS: { value: WoodType; label: string; desc: string; color: string }[] = [
-  { value: "lipa",  label: "Липа",  desc: "Классика, мягкий аромат, светлый тон", color: "#F2E4BE" },
-  { value: "olha",  label: "Ольха", desc: "Тёплый коричневый, не смолит",         color: "#D8A870" },
-  { value: "abash", label: "Абаш",  desc: "Африканское, не нагревается, премиум", color: "#F8EED2" },
+  { value: "lipa",  label: "Липа",  desc: "Классика, мягкий аромат, светлый тон",  color: "#F2E4BE" },
+  { value: "olha",  label: "Ольха", desc: "Тёплый коричневый, не смолит",           color: "#D8A870" },
+  { value: "kedr",  label: "Кедр",  desc: "Хвойный аромат, терапевтический эффект",color: "#C8896A" },
+  { value: "abash", label: "Абаш",  desc: "Африканское, не нагревается, премиум",  color: "#F8EED2" },
 ];
 
 const CORNERS: { value: Corner; label: string; icon: string }[] = [
@@ -103,14 +104,35 @@ const DOOR_WALLS: { value: DoorWall; label: string }[] = [
   { value: "right", label: "Правая"   },
 ];
 
-export default function SidePanel({ config, onChange, step, onStep, onFinish }: SidePanelProps) {
-  const { saltWall } = getAutoPlacement(config);
+const SALT_WALLS: { value: SaltWall; label: string; icon: string }[] = [
+  { value: "back",  label: "Задняя",  icon: "AlignEndHorizontal"   },
+  { value: "left",  label: "Левая",   icon: "AlignStartVertical"   },
+  { value: "right", label: "Правая",  icon: "AlignEndVertical"     },
+];
 
-  // Расчёт примерной рекомендуемой t° для парилки
+const GIFT_OPTIONS: { value: GiftItem; label: string; emoji: string; desc: string }[] = [
+  { value: "ladle",       label: "Ковш",             emoji: "🪣", desc: "Деревянный ковш для подачи пара" },
+  { value: "hat",         label: "Шапка",             emoji: "🧢", desc: "Фирменная шапка для бани" },
+  { value: "broom",       label: "Веник",             emoji: "🌿", desc: "Берёзовый или дубовый банный веник" },
+  { value: "towel",       label: "Полотенце",         emoji: "🛁", desc: "Фирменное махровое полотенце" },
+  { value: "aroma-set",   label: "Набор ароматов",    emoji: "🧴", desc: "Набор 5 эфирных масел для парилки" },
+  { value: "thermometer", label: "Термометр+гигрометр",emoji: "🌡️", desc: "Деревянный прибор для контроля климата" },
+];
+
+export default function SidePanel({ config, onChange, step, onStep, onFinish }: SidePanelProps) {
+  const { saltWall: autoSaltWall } = getAutoPlacement(config);
+  void autoSaltWall;
+
   const vol = config.width * config.depth * config.height;
   const recTemp = config.stoveType === "electric"
     ? Math.round(Math.min(90, 65 + vol * 2))
     : Math.round(Math.min(100, 70 + vol * 2));
+
+  const toggleGift = (gift: GiftItem) => {
+    const current = config.gifts || [];
+    const next = current.includes(gift) ? current.filter(g => g !== gift) : [...current, gift];
+    onChange({ gifts: next });
+  };
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -164,17 +186,21 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
                 <span className="text-white/40 font-body">Объём</span>
                 <span className="text-gold font-bold font-heading">{(config.width*config.depth*config.height).toFixed(1)} м³</span>
               </div>
-              {/* Бонус: рекомендуемая температура */}
               <div className="flex justify-between text-sm pt-1 border-t border-white/5 mt-1">
                 <span className="text-white/40 font-body flex items-center gap-1">
-                  <span style={{fontSize:11}}>🌡️</span> Рек. температура
+                  <span style={{fontSize:11}}>🌡️</span> Рек. t° парилки
                 </span>
                 <span className="text-gold font-bold font-heading">{recTemp}°C</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/40 font-body">Мощность печи</span>
+                <span className="text-white/60 font-heading">~{Math.ceil(vol * 1.2)} кВт</span>
               </div>
             </div>
             <div className="rounded-xl border border-white/5 px-3 py-2.5" style={{background:"rgba(255,255,255,0.02)"}}>
               <p className="text-white/25 text-xs leading-relaxed">
-                Полки: нижний <b className="text-white/50">100×45 см</b>, верхний <b className="text-white/50">70×90 см</b>. Расставляются вдоль задней стены автоматически.
+                Полки на всю длину стены: нижний <b className="text-white/50">глубина 100 см, h 45 см</b>,
+                верхний <b className="text-white/50">глубина 70 см, h 90 см</b>. Подспинник на <b className="text-white/50">h 115 см</b>.
               </p>
             </div>
           </div>
@@ -219,70 +245,80 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
             {/* Гималайская соль */}
             <Toggle active={config.salt} onClick={() => onChange({salt: !config.salt})}
               icon="Layers" title="Гималайская соль"
-              sub={config.salt && saltWall
-                ? `→ ${({back:"задняя стена",left:"левая стена",right:"правая стена"})[saltWall]}, панно ${config.saltPanelWidth}×${config.saltPanelHeight} м`
+              sub={config.salt
+                ? `→ ${({back:"задняя",left:"левая",right:"правая"})[config.saltWall]} стена, ${config.saltPanelWidth}×${config.saltPanelHeight} м`
                 : "Лечебный эффект, розовый цвет"} />
             {config.salt && (
-              <div className="ml-2 space-y-3 px-3 py-3 rounded-xl border border-gold/10"
+              <div className="ml-2 space-y-2 px-3 py-3 rounded-xl border border-gold/10"
                 style={{background:"rgba(201,147,58,0.04)"}}>
-                <p className="font-heading text-[10px] tracking-widest uppercase text-white/30">Размер панно соли</p>
-                <SliderRow
-                  label="Ширина панно" value={config.saltPanelWidth}
+                <p className="font-heading text-[10px] tracking-widest uppercase text-white/30">Стена для соли</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {SALT_WALLS.map(sw => (
+                    <button key={sw.value} onClick={() => onChange({saltWall: sw.value})}
+                      className={`flex flex-col items-center gap-1 py-2 rounded-xl border text-xs transition-all ${
+                        config.saltWall===sw.value ? "border-gold bg-gold/10 text-gold-light" : "border-white/10 text-white/40 hover:border-white/25"
+                      }`}>
+                      <Icon name={sw.icon as "AlignEndHorizontal"} size={13} />
+                      <span className="font-heading text-[10px] tracking-wider">{sw.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <SliderRow label="Ширина панно" value={config.saltPanelWidth}
                   min={0.5} max={Math.max(config.width, config.depth)} step={0.1} unit="м"
                   onChange={v => onChange({saltPanelWidth: v})} />
-                <SliderRow
-                  label="Высота панно" value={config.saltPanelHeight}
+                <SliderRow label="Высота панно" value={config.saltPanelHeight}
                   min={0.3} max={config.height * 0.9} step={0.1} unit="м"
                   onChange={v => onChange({saltPanelHeight: v})} />
               </div>
             )}
 
-            {/* Можжевельник на потолке */}
+            {/* Можжевельник */}
             <Toggle active={config.juniper} onClick={() => onChange({juniper: !config.juniper})}
               icon="TreePine" title="Можжевельник (потолок)"
               sub={config.juniper
-                ? `→ на потолке, панно ${config.juniperPanelWidth}×${config.juniperPanelDepth} м`
+                ? `→ потолок, панно ${config.juniperPanelWidth}×${config.juniperPanelDepth} м`
                 : "Панно из спилов на потолке, аромат леса"} />
             {config.juniper && (
               <div className="ml-2 space-y-3 px-3 py-3 rounded-xl border border-gold/10"
                 style={{background:"rgba(201,147,58,0.04)"}}>
                 <p className="font-heading text-[10px] tracking-widest uppercase text-white/30">Размер панно на потолке</p>
-                <SliderRow
-                  label="Ширина (поперёк)" value={config.juniperPanelWidth}
+                <SliderRow label="Ширина (поперёк)" value={config.juniperPanelWidth}
                   min={0.4} max={config.width * 0.95} step={0.1} unit="м"
                   onChange={v => onChange({juniperPanelWidth: v})} />
-                <SliderRow
-                  label="Глубина (вдоль)" value={config.juniperPanelDepth}
+                <SliderRow label="Глубина (вдоль)" value={config.juniperPanelDepth}
                   min={0.4} max={config.depth * 0.95} step={0.1} unit="м"
                   onChange={v => onChange({juniperPanelDepth: v})} />
               </div>
             )}
 
+            {/* LED */}
             <Toggle active={config.light} onClick={() => onChange({light: !config.light})}
               icon="Lightbulb" title="LED подсветка"
-              sub="Тёплое свечение у пола" />
-            <Toggle active={config.benches} onClick={() => onChange({benches: !config.benches})}
-              icon="LayoutList" title="Лавки (2 яруса)"
-              sub="Нижний 100×45 см, верхний 70×90 см" />
+              sub={config.light
+                ? "Подсвечивает полок, подспинник" + (config.salt?" и соль":"") + (config.juniper?" и можжевельник":"")
+                : "Подсветка полков, подспинника и панно"} />
 
-            {/* Бонус: ароматерапия */}
+            {/* Лавки */}
+            <Toggle active={config.benches} onClick={() => onChange({benches: !config.benches})}
+              icon="LayoutList" title="Полки + подспинник"
+              sub="На всю длину стены, нижний 100см, верхний 70см" />
+
+            {/* Ароматы */}
             <div className="mt-1">
-              <Label>Бонус — аромат</Label>
+              <Label>Аромат для парилки</Label>
               <div className="grid grid-cols-3 gap-1.5">
                 {([
-                  ["🌲 Кедр",    "aroma-cedar"],
-                  ["🌿 Эвкалипт","aroma-eucalyptus"],
-                  ["🍃 Мята",    "aroma-mint"],
-                ] as [string,string][]).map(([label]) => (
-                  <div key={label}
-                    className="flex flex-col items-center gap-1 py-2 rounded-xl border border-white/8 text-center cursor-default"
+                  ["🌲","Кедр"],["🌿","Эвкалипт"],["🍃","Мята"],
+                  ["🍊","Апельсин"],["🌸","Лаванда"],["🍂","Хвоя"],
+                ] as [string,string][]).map(([emoji, label]) => (
+                  <div key={label} className="flex flex-col items-center gap-1 py-2 rounded-xl border border-white/8 cursor-default"
                     style={{background:"rgba(255,255,255,0.02)"}}>
-                    <span className="text-lg">{label.split(" ")[0]}</span>
-                    <span className="text-white/25 text-[10px] font-heading uppercase">{label.split(" ")[1]}</span>
+                    <span className="text-lg">{emoji}</span>
+                    <span className="text-white/25 text-[9px] font-heading uppercase">{label}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-white/20 text-[10px] mt-1.5 text-center">Появится в описании проекта</p>
+              <p className="text-white/20 text-[10px] mt-1.5 text-center">Указывается в спецификации проекта</p>
             </div>
           </div>
         )}
@@ -327,13 +363,12 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
               </>
             )}
 
-            {/* Расчёт температуры */}
             <div className="rounded-xl border border-gold/15 px-3 py-2.5 space-y-1"
               style={{background:"rgba(201,147,58,0.05)"}}>
               <p className="font-heading text-[10px] tracking-widest uppercase text-white/30 mb-1.5">🌡️ Расчёт нагрева</p>
               <div className="flex justify-between text-sm">
                 <span className="text-white/40 font-body">Объём парилки</span>
-                <span className="text-white/60 font-heading">{(config.width*config.depth*config.height).toFixed(1)} м³</span>
+                <span className="text-white/60 font-heading">{vol.toFixed(1)} м³</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/40 font-body">Рек. температура</span>
@@ -341,7 +376,11 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/40 font-body">Мощность печи</span>
-                <span className="text-white/60 font-heading">{Math.ceil(config.width*config.depth*config.height * 1.2)} кВт</span>
+                <span className="text-white/60 font-heading">~{Math.ceil(vol * 1.2)} кВт</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/40 font-body">Время прогрева</span>
+                <span className="text-white/60 font-heading">~{Math.round(25 + vol * 8)} мин</span>
               </div>
             </div>
           </div>
@@ -365,24 +404,52 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
               </OptionCard>
             ))}
 
-            {/* Параметры двери */}
-            <div className="rounded-xl border border-white/8 px-3 py-2.5 space-y-1 mt-2"
+            <div className="rounded-xl border border-white/8 px-3 py-2.5 space-y-1.5 mt-2"
               style={{background:"rgba(140,190,220,0.06)"}}>
-              <p className="font-heading text-[10px] tracking-widest uppercase text-white/25 mb-1.5">Параметры двери</p>
+              <p className="font-heading text-[10px] tracking-widest uppercase text-white/25 mb-1">Параметры двери</p>
               {[
-                ["Тип", "Стеклянная (закалённое стекло)"],
-                ["Размер", "75 × 195 см"],
-                ["Открытие", "На себя, правое"],
-                ["Ручка", "Металл, нержавейка"],
+                ["Размер", "70 × 190 см"],
+                ["Стекло", "Закалённое, прозрачное"],
+                ["Ручка изнутри", "Деревянная"],
+                ["Ручка снаружи", "Алюминиевая"],
+                ["Короб", "Ольховый"],
               ].map(([k,v]) => (
                 <div key={k} className="flex justify-between text-xs">
                   <span className="text-white/35">{k}</span>
-                  <span className="text-white/60 font-bold">{v}</span>
+                  <span className="text-white/65 font-bold">{v}</span>
                 </div>
               ))}
             </div>
 
-            {/* Финальный блок с кнопкой */}
+            {/* Подарки */}
+            <div className="mt-3">
+              <Label>🎁 Выбрать подарок к заказу</Label>
+              <p className="text-white/25 text-xs mb-2 font-body">Можно отметить несколько</p>
+              <div className="space-y-1.5">
+                {GIFT_OPTIONS.map(gift => {
+                  const isActive = (config.gifts || []).includes(gift.value);
+                  return (
+                    <button key={gift.value} onClick={() => toggleGift(gift.value)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border transition-all text-left ${
+                        isActive ? "border-gold bg-gold/10" : "border-white/10 hover:border-white/25"
+                      }`}>
+                      <span className="text-xl flex-shrink-0">{gift.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-sm font-bold ${isActive?"text-gold-light":"text-white/70"}`}>{gift.label}</div>
+                        <div className="text-white/30 text-[10px] truncate">{gift.desc}</div>
+                      </div>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                        isActive ? "border-gold bg-gold" : "border-white/20"
+                      }`}>
+                        {isActive && <Icon name="Check" size={10} className="text-coal" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Финальный блок */}
             <div className="rounded-xl border border-gold/20 px-3 py-3 mt-2"
               style={{background:"rgba(201,147,58,0.06)"}}>
               <p className="font-body text-xs text-white/40 mb-2.5 leading-relaxed">

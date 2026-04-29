@@ -113,21 +113,35 @@ export default function Constructor() {
 
   // ── Текст конфигурации ──
   const buildConfigText = () => {
-    const woodLabel = { lipa: "Липа", olha: "Ольха", abash: "Абаш" }[config.wood];
+    const woodLabel = { lipa: "Липа", olha: "Ольха", kedr: "Кедр", abash: "Абаш" }[config.wood] ?? config.wood;
+    const saltWallLabel = { back: "задняя стена", left: "левая стена", right: "правая стена" }[config.saltWall];
+    const vol = config.width * config.depth * config.height;
+    const recTemp = config.stoveType === "electric"
+      ? Math.round(Math.min(90, 65 + vol * 2))
+      : Math.round(Math.min(100, 70 + vol * 2));
     const extras = [
-      config.salt    && `гималайская соль (панно ${config.saltPanelWidth}×${config.saltPanelHeight} м)`,
+      config.salt    && `гималайская соль (${saltWallLabel}, панно ${config.saltPanelWidth}×${config.saltPanelHeight} м)`,
       config.juniper && `можжевельник на потолке (${config.juniperPanelWidth}×${config.juniperPanelDepth} м)`,
-      config.light   && "LED подсветка",
-      config.benches && "лавки (нижний 100×45см, верхний 70×90см)",
-      config.stoveEnabled && `${config.stoveType === "wood" ? "дровяная" : "электро"} печь`,
-    ].filter(Boolean).join(", ");
+      config.light   && "LED подсветка (полок + подспинник" + (config.salt ? " + соль" : "") + (config.juniper ? " + можжевельник" : "") + ")",
+      config.benches && "полки на всю стену (нижний 100см/h45, верхний 70см/h90) + подспинник h115",
+      config.stoveEnabled && `${config.stoveType === "wood" ? "дровяная" : "электро"} печь, угол: ${{ "front-left":"перед-лево","front-right":"перед-право","back-left":"зад-лево","back-right":"зад-право" }[config.stoveCorner]}`,
+    ].filter(Boolean).join("\n  ");
+    const giftLabels: Record<string, string> = {
+      ladle: "Ковш деревянный", hat: "Фирменная шапка", broom: "Банный веник",
+      towel: "Фирменное полотенце", "aroma-set": "Набор ароматов (5 шт)", thermometer: "Термометр+гигрометр",
+    };
+    const giftsStr = (config.gifts || []).map(g => giftLabels[g]).filter(Boolean).join(", ");
     return [
-      `Конфигурация парилки:`,
+      `=== КОНФИГУРАЦИЯ ПАРИЛКИ ===`,
       `Размеры: ${config.width}м × ${config.depth}м × ${config.height}м`,
-      `Площадь: ${(config.width * config.depth).toFixed(1)} м²`,
+      `Площадь пола: ${(config.width * config.depth).toFixed(1)} м²`,
+      `Объём: ${vol.toFixed(1)} м³`,
+      `Рекомендуемая t°: ${recTemp}°C`,
       `Дерево: ${woodLabel} (${config.direction === "horizontal" ? "горизонталь" : "вертикаль"})`,
-      extras ? `Добавки: ${extras}` : "",
-      `Дверь: ${{ front:"передняя", left:"левая", right:"правая" }[config.doorWall]} стена (стекло)`,
+      `Дверь: ${{ front:"передняя", left:"левая", right:"правая" }[config.doorWall]} стена (стекло 70×190, короб ольховый)`,
+      extras ? `Добавки:\n  ${extras}` : "",
+      giftsStr ? `Подарки: ${giftsStr}` : "",
+      `===`,
       form.name ? `Имя: ${form.name}` : "",
       form.phone ? `Телефон: ${form.phone}` : "",
     ].filter(Boolean).join("\n");
