@@ -7,6 +7,7 @@ export type Corner = "front-left" | "front-right" | "back-left" | "back-right";
 export type DoorWall = "front" | "left" | "right";
 export type SaltWall = "back" | "left" | "right";
 export type GiftItem = "ladle" | "hat" | "broom" | "towel" | "aroma-set" | "thermometer";
+export type MasterName = "Максим" | "Эрнст" | "Юра" | "Сергей" | "Денис" | "";
 
 export interface RoomConfig {
   // Размеры (метры)
@@ -20,7 +21,7 @@ export interface RoomConfig {
 
   // Добавки
   salt: boolean;
-  saltWall: SaltWall;          // стена для соли — выбор пользователя
+  saltWall: SaltWall;
   saltPanelWidth: number;
   saltPanelHeight: number;
   juniper: boolean;
@@ -41,6 +42,9 @@ export interface RoomConfig {
 
   // Подарки
   gifts: GiftItem[];
+
+  // Мастер
+  masterName: MasterName;
 }
 
 export const DEFAULT_CONFIG: RoomConfig = {
@@ -63,7 +67,12 @@ export const DEFAULT_CONFIG: RoomConfig = {
   doorWall: "front",
   benches: true,
   gifts: [],
+  masterName: "",
 };
+
+// Углы, где стоят полки (задняя стена — bench zone)
+// Полки всегда у задней стены, значит back-left и back-right недоступны
+export const BENCH_BLOCKED_CORNERS: Corner[] = ["back-left", "back-right"];
 
 export function getAutoPlacement(config: RoomConfig): {
   saltWall: SaltWall | null;
