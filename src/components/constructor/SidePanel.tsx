@@ -1,6 +1,6 @@
 import Icon from "@/components/ui/icon";
-import type { RoomConfig, WoodType, Direction, StoveType, Corner, DoorWall, SaltWall, GiftItem } from "./useRoomConfig";
-import { getAutoPlacement } from "./useRoomConfig";
+import type { RoomConfig, WoodType, Direction, StoveType, Corner, DoorWall, SaltWall, GiftItem, MasterName } from "./useRoomConfig";
+import { getAutoPlacement, BENCH_BLOCKED_CORNERS } from "./useRoomConfig";
 
 interface SidePanelProps {
   config: RoomConfig;
@@ -16,6 +16,15 @@ const STEPS = [
   { icon: "Layers",     label: "Добавки" },
   { icon: "Flame",      label: "Печь"    },
   { icon: "DoorOpen",   label: "Дверь"   },
+  { icon: "User",       label: "Мастер"  },
+];
+
+const MASTERS: { value: MasterName; emoji: string; desc: string }[] = [
+  { value: "Максим",  emoji: "👷", desc: "Опыт 12 лет, специалист по экзотике" },
+  { value: "Эрнст",  emoji: "🔨", desc: "Мастер финской и русской бани" },
+  { value: "Юра",    emoji: "🪵", desc: "Эксперт по гималайской соли и подсветке" },
+  { value: "Сергей", emoji: "🌲", desc: "Специализация — кедр и абаш" },
+  { value: "Денис",  emoji: "⚡", desc: "Электропечи и современные решения" },
 ];
 
 function OptionCard({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -349,16 +358,35 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
             {config.stoveEnabled && (
               <>
                 <Label>Угол расположения</Label>
+                {config.benches && (
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-600/30 mb-1"
+                    style={{background:"rgba(180,90,20,0.10)"}}>
+                    <Icon name="AlertTriangle" size={13} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                    <p className="font-body text-[10px] text-amber-400/80 leading-relaxed">
+                      Задние углы заняты полками — печь можно поставить только спереди
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-1.5">
-                  {CORNERS.map(c => (
-                    <button key={c.value} onClick={() => onChange({stoveCorner: c.value})}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all ${
-                        config.stoveCorner===c.value ? "border-gold bg-gold/10 text-gold-light font-bold" : "border-white/10 text-white/40 hover:border-white/25"
-                      }`}>
-                      <Icon name={c.icon as "ArrowUpLeft"} size={13} />
-                      {c.label}
-                    </button>
-                  ))}
+                  {CORNERS.map(c => {
+                    const blocked = config.benches && BENCH_BLOCKED_CORNERS.includes(c.value);
+                    return (
+                      <button key={c.value}
+                        disabled={blocked}
+                        onClick={() => !blocked && onChange({stoveCorner: c.value})}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all ${
+                          blocked
+                            ? "border-white/5 text-white/15 cursor-not-allowed opacity-40"
+                            : config.stoveCorner===c.value
+                            ? "border-gold bg-gold/10 text-gold-light font-bold"
+                            : "border-white/10 text-white/40 hover:border-white/25"
+                        }`}>
+                        <Icon name={c.icon as "ArrowUpLeft"} size={13} />
+                        <span>{c.label}</span>
+                        {blocked && <span className="ml-auto text-[9px] text-white/20">полки</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}
@@ -453,7 +481,50 @@ export default function SidePanel({ config, onChange, step, onStep, onFinish }: 
             <div className="rounded-xl border border-gold/20 px-3 py-3 mt-2"
               style={{background:"rgba(201,147,58,0.06)"}}>
               <p className="font-body text-xs text-white/40 mb-2.5 leading-relaxed">
-                Конфигурация готова! Оставьте телефон — получите PDF-проект и мастер свяжется с вами.
+                Конфигурация готова! Выберите мастера — перейдите к шагу 6.
+              </p>
+              <button onClick={() => onStep(5)}
+                className="w-full py-3 rounded-xl font-heading text-sm font-bold tracking-widest uppercase text-coal flex items-center justify-center gap-2"
+                style={{background:"linear-gradient(135deg,#C9933A,#8A611A)"}}>
+                <Icon name="User" size={15} />
+                Выбрать мастера
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ШАГ 5 — Выбор мастера */}
+        {step === 5 && (
+          <div className="space-y-3">
+            <div>
+              <Label>Ваш мастер</Label>
+              <p className="font-body text-xs text-white/30 mb-3">Выберите специалиста, который будет воплощать вашу парилку</p>
+            </div>
+            {MASTERS.map(m => (
+              <button key={m.value} onClick={() => onChange({masterName: m.value})}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border transition-all text-left ${
+                  config.masterName === m.value ? "border-gold bg-gold/10" : "border-white/10 hover:border-white/25"
+                }`}>
+                <span className="text-2xl flex-shrink-0">{m.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-bold ${config.masterName === m.value ? "text-gold-light" : "text-white/70"}`}>{m.value}</div>
+                  <div className="text-white/30 text-[10px]">{m.desc}</div>
+                </div>
+                {config.masterName === m.value && <Icon name="Check" size={14} className="text-gold flex-shrink-0" />}
+              </button>
+            ))}
+            <button onClick={() => onChange({masterName: ""})}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs transition-all ${
+                config.masterName === "" ? "border-gold bg-gold/10 text-gold-light" : "border-white/8 text-white/25 hover:border-white/20"
+              }`}>
+              <Icon name="Shuffle" size={13} />
+              Не важно — назначьте сами
+            </button>
+
+            <div className="rounded-xl border border-gold/20 px-3 py-3 mt-2"
+              style={{background:"rgba(201,147,58,0.06)"}}>
+              <p className="font-body text-xs text-white/40 mb-2.5 leading-relaxed">
+                Всё готово! Оставьте телефон и получите PDF-проект. Мастер свяжется с вами.
               </p>
               <button onClick={onFinish}
                 className="w-full py-3 rounded-xl font-heading text-sm font-bold tracking-widest uppercase text-coal flex items-center justify-center gap-2"

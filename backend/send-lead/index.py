@@ -27,6 +27,7 @@ def handler(event: dict, context) -> dict:
     phone = body.get("phone", "").strip()
     message = body.get("message", "").strip()
     channel = body.get("channel", "").strip()  # whatsapp/telegram/viber/email/call
+    master = body.get("master", "").strip()
 
     if not name or not phone:
         return {
@@ -36,8 +37,8 @@ def handler(event: dict, context) -> dict:
         }
 
     # Уведомление мастеру через email и Telegram
-    send_email(name, phone, message, channel)
-    send_telegram(name, phone, message, channel)
+    send_email(name, phone, message, channel, master)
+    send_telegram(name, phone, message, channel, master)
 
     # Ссылка для мастера — написать клиенту в WhatsApp
     master_phone = os.environ.get("MASTER_PHONE", "").replace("+", "").replace(" ", "")
@@ -63,7 +64,7 @@ CHANNEL_LABELS = {
 }
 
 
-def send_email(name: str, phone: str, message: str, channel: str):
+def send_email(name: str, phone: str, message: str, channel: str, master: str = ""):
     smtp_user = "SaunaNovosib@yandex.ru"
     smtp_password = os.environ["SMTP_PASSWORD"]
     recipient = "SaunaNovosib@yandex.ru"
@@ -72,6 +73,7 @@ def send_email(name: str, phone: str, message: str, channel: str):
     client_phone_clean = phone.replace("+", "").replace(" ", "").replace("-", "")
     wa_url = f"https://wa.me/{client_phone_clean}"
     tg_url = f"https://t.me/+{client_phone_clean}"
+    master_label = master if master else "не выбран"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"🔥 Новая заявка с конструктора — {name}"
@@ -82,7 +84,8 @@ def send_email(name: str, phone: str, message: str, channel: str):
         f"Новая заявка с конструктора парилки\n\n"
         f"Имя: {name}\n"
         f"Телефон: {phone}\n"
-        f"Канал: {channel_label}\n\n"
+        f"Канал: {channel_label}\n"
+        f"Мастер: {master_label}\n\n"
         f"{message or '—'}"
     )
 
@@ -103,6 +106,10 @@ def send_email(name: str, phone: str, message: str, channel: str):
           <tr>
             <td style="color: #888; padding: 7px 0; font-size: 14px;">Выбрал связь:</td>
             <td style="color: #C9933A; padding: 7px 0; font-size: 14px;"><strong>{channel_label}</strong></td>
+          </tr>
+          <tr>
+            <td style="color: #888; padding: 7px 0; font-size: 14px;">Мастер:</td>
+            <td style="color: #FFD060; padding: 7px 0; font-size: 14px;"><strong>{master_label}</strong></td>
           </tr>
           <tr>
             <td style="color: #888; padding: 7px 0; vertical-align: top; font-size: 14px;">Конфигурация:</td>
@@ -127,24 +134,27 @@ def send_email(name: str, phone: str, message: str, channel: str):
         server.sendmail(smtp_user, recipient, msg.as_string())
 
 
-def send_telegram(name: str, phone: str, message: str, channel: str):
+def send_telegram(name: str, phone: str, message: str, channel: str, master: str = ""):
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
     channel_label = CHANNEL_LABELS.get(channel, channel)
     client_phone_clean = phone.replace("+", "").replace(" ", "").replace("-", "")
     wa_url = f"https://wa.me/{client_phone_clean}"
+    master_label = master if master else "не выбран"
 
-    # Берём первые 3 строки конфигурации (размеры, дерево, добавки)
-    config_preview = "\n".join(message.split("\n")[:4]) if message else "—"
+    # Полная конфигурация в Telegram
+    config_lines = message.split("\n") if message else []
+    config_preview = "\n".join(config_lines[:12]) if config_lines else "—"
 
     text = (
         f"🔥 *Новая заявка с конструктора*\n\n"
         f"👤 *Имя:* {name}\n"
         f"📞 *Телефон:* `{phone}`\n"
-        f"💬 *Хочет связи:* {channel_label}\n\n"
+        f"💬 *Связь:* {channel_label}\n"
+        f"👷 *Мастер:* *{master_label}*\n\n"
         f"```\n{config_preview}\n```\n\n"
-        f"[Написать в WhatsApp]({wa_url})"
+        f"[✉️ Написать в WhatsApp]({wa_url})"
     )
 
     data = json.dumps({

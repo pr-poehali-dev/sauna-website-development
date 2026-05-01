@@ -9,14 +9,15 @@ import { renderRoom } from "@/components/constructor/IsoCanvas";
 
 const SEND_LEAD_URL = "https://functions.poehali.dev/b7883b44-027e-4706-8bcd-bc9fc242b880";
 
-type ViewMode = "iso" | "front" | "back" | "left" | "right" | "top";
+type ViewMode = "iso" | "front" | "back" | "left" | "right" | "top" | "ceiling";
 const VIEW_TABS: { key: ViewMode; label: string; icon: string }[] = [
-  { key: "iso",   label: "3D",      icon: "Box"         },
-  { key: "front", label: "Перед",   icon: "RectangleHorizontal" },
-  { key: "back",  label: "Зад",     icon: "RectangleHorizontal" },
-  { key: "left",  label: "Лево",    icon: "RectangleVertical"   },
-  { key: "right", label: "Право",   icon: "RectangleVertical"   },
-  { key: "top",   label: "План",    icon: "LayoutGrid"  },
+  { key: "iso",     label: "3D",      icon: "Box"                 },
+  { key: "front",   label: "Перед",   icon: "RectangleHorizontal" },
+  { key: "back",    label: "Зад",     icon: "RectangleHorizontal" },
+  { key: "left",    label: "Лево",    icon: "RectangleVertical"   },
+  { key: "right",   label: "Право",   icon: "RectangleVertical"   },
+  { key: "top",     label: "План",    icon: "LayoutGrid"          },
+  { key: "ceiling", label: "Потолок", icon: "ArrowUpFromLine"     },
 ];
 
 export default function Constructor() {
@@ -48,8 +49,8 @@ export default function Constructor() {
 
   // ── Скачать PDF-пакет (все виды) ──
   const handleDownloadPdf = async () => {
-    const views: ViewMode[] = ["iso", "front", "back", "left", "right", "top"];
-    const viewNames = { iso:"3D вид", front:"Передняя стена", back:"Задняя стена", left:"Левая стена", right:"Правая стена", top:"План (вид сверху)" };
+    const views: ViewMode[] = ["iso", "front", "back", "left", "right", "top", "ceiling"];
+    const viewNames: Record<ViewMode, string> = { iso:"3D вид", front:"Передняя стена", back:"Задняя стена", left:"Левая стена", right:"Правая стена", top:"План (вид сверху)", ceiling:"Вид потолка (снизу вверх)" };
 
     // Генерируем все изображения через canvas
     const images: { name: string; dataUrl: string }[] = views.map(v => {
@@ -69,12 +70,13 @@ export default function Constructor() {
       ["Объём",           `${(config.width * config.depth * config.height).toFixed(1)} м³`],
       ["Порода дерева",   woodLabel],
       ["Укладка вагонки", dirLabel],
-      config.salt    ? ["Гималайская соль", "есть"] : null,
-      config.juniper ? ["Можжевельник",     "панно"] : null,
-      config.light   ? ["LED подсветка",   "есть"] : null,
-      config.benches ? ["Лавки",           "2 яруса"] : null,
-      config.stoveEnabled ? ["Печь", `${config.stoveType === "wood" ? "дровяная" : "электро"} (${config.stoveCorner})`] : null,
-      ["Дверь", `${({front:"передняя",left:"левая",right:"правая"})[config.doorWall]} стена`],
+      config.salt    ? ["Гималайская соль", `2 полосы 20 см × ${config.saltPanelHeight} м`] : null,
+      config.juniper ? ["Можжевельник",     `потолок ${config.juniperPanelWidth}×${config.juniperPanelDepth} м`] : null,
+      config.light   ? ["LED подсветка",   "полок + подспинник" + (config.salt?" + соль":"") + (config.juniper?" + можжевельник":"")] : null,
+      config.benches ? ["Полки",           "нижний 100 см (h=45) / верхний 70 см (h=90) + подспинник 115 см"] : null,
+      config.stoveEnabled ? ["Печь", `${config.stoveType === "wood" ? "Дровяная" : "Электрокаменка"} · угол: ${{ "front-left":"перед-лево","front-right":"перед-право","back-left":"зад-лево","back-right":"зад-право" }[config.stoveCorner]}`] : null,
+      ["Дверь", `${({front:"передняя",left:"левая",right:"правая"})[config.doorWall]} стена · 70×190 см, закалённое стекло`],
+      config.masterName ? ["Мастер", config.masterName] : null,
     ].filter(Boolean) as [string, string][];
 
     const specHtml = specRows.map(([k,v2]) =>
@@ -89,18 +91,53 @@ export default function Constructor() {
       </div>`
     ).join("");
 
+    const masterStr = config.masterName || "будет назначен";
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Конфигурация парилки</title>
+    <title>Проект парилки</title>
     <style>
-      body{margin:0;font-family:sans-serif;background:#fff}
-      @page{margin:10mm}
+      *{box-sizing:border-box}
+      body{margin:0;font-family:'Georgia',serif;background:#FDF6EC}
+      @page{margin:12mm}
       @media print{.no-print{display:none}}
+      .cover{background:linear-gradient(135deg,#1A1208 0%,#3A2010 60%,#1A1208 100%);padding:40px;border-radius:0;page-break-after:always}
+      .spec-table td{padding:7px 14px;font-size:13px;border-bottom:1px solid #e8d8c0}
+      .view-page{page-break-after:always;padding:20px}
+      h2.view-title{font-family:Georgia,serif;color:#8A611A;margin:0 0 10px;font-size:15px;border-bottom:2px solid #C9933A;padding-bottom:6px}
     </style></head><body>
-    <div style="padding:24px 24px 0">
-      <h1 style="font-family:sans-serif;color:#3A2010;margin:0 0 4px">Конфигурация парилки</h1>
-      <p style="color:#888;margin:0 0 20px;font-size:13px">Дата: ${new Date().toLocaleDateString("ru-RU")}</p>
-      <table style="border-collapse:collapse;width:100%;max-width:480px">${specHtml}</table>
+
+    <!-- Обложка -->
+    <div class="cover">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="color:#C9933A;font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">Индивидуальный проект</div>
+          <h1 style="color:#F8EED2;margin:0 0 6px;font-size:28px;font-weight:normal">Парилка мечты</h1>
+          <p style="color:#A0845A;margin:0;font-size:14px">${config.width}×${config.depth}×${config.height} м · ${woodLabel}</p>
+        </div>
+        <div style="text-align:right">
+          <div style="color:#A0845A;font-size:11px">${new Date().toLocaleDateString("ru-RU")}</div>
+          <div style="color:#C9933A;font-size:12px;margin-top:4px">Мастер: ${masterStr}</div>
+        </div>
+      </div>
+      <div style="margin-top:28px;border-top:1px solid rgba(201,147,58,0.3);padding-top:20px">
+        <table style="width:100%;border-collapse:collapse">
+          ${specRows.map(([k,v2])=>`<tr>
+            <td style="color:#A0845A;padding:5px 0;font-size:13px;width:200px">${k}</td>
+            <td style="color:#F8EED2;padding:5px 0;font-size:13px;font-weight:bold">${v2}</td>
+          </tr>`).join("")}
+        </table>
+      </div>
+      <div style="margin-top:24px;padding:16px;background:rgba(201,147,58,0.1);border-radius:8px;border:1px solid rgba(201,147,58,0.2)">
+        <p style="color:#C9933A;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin:0 0 6px">Атмосфера</p>
+        <p style="color:#D4B88A;font-size:13px;margin:0;line-height:1.6">
+          ${config.salt && config.juniper ? "Максимум пользы: розовый свет соли, хвойный аромат можжевельника и мягкое тепло дерева — полное погружение в оздоровительный ритуал." :
+            config.salt ? "Перламутровое свечение гималайской соли наполняет воздух минералами и создаёт неповторимую атмосферу." :
+            config.juniper ? "Можжевельник при нагреве выделяет фитонциды — природный антисептик и сильнейший ароматерапевтический эффект." :
+            "Классическая парилка из отборного дерева — чистота форм, тепло и уют."}
+        </p>
+      </div>
     </div>
+
+    <!-- Виды -->
     ${pagesHtml}
     <script>window.onload=()=>window.print()</script>
     </body></html>`;
@@ -120,7 +157,7 @@ export default function Constructor() {
       ? Math.round(Math.min(90, 65 + vol * 2))
       : Math.round(Math.min(100, 70 + vol * 2));
     const extras = [
-      config.salt    && `гималайская соль (${saltWallLabel}, панно ${config.saltPanelWidth}×${config.saltPanelHeight} м)`,
+      config.salt    && `гималайская соль (${saltWallLabel}, 2 вертикальные полосы 20см × ${config.saltPanelHeight}м)`,
       config.juniper && `можжевельник на потолке (${config.juniperPanelWidth}×${config.juniperPanelDepth} м)`,
       config.light   && "LED подсветка (полок + подспинник" + (config.salt ? " + соль" : "") + (config.juniper ? " + можжевельник" : "") + ")",
       config.benches && "полки на всю стену (нижний 100см/h45, верхний 70см/h90) + подспинник h115",
@@ -144,6 +181,7 @@ export default function Constructor() {
       `===`,
       form.name ? `Имя: ${form.name}` : "",
       form.phone ? `Телефон: ${form.phone}` : "",
+      config.masterName ? `Мастер: ${config.masterName}` : "",
     ].filter(Boolean).join("\n");
   };
 
@@ -171,7 +209,7 @@ export default function Constructor() {
       await fetch(SEND_LEAD_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, phone: form.phone, channel, message: text }),
+        body: JSON.stringify({ name: form.name, phone: form.phone, channel, message: text, master: config.masterName || "" }),
       });
     } finally { setSending(false); }
 
@@ -533,18 +571,30 @@ export default function Constructor() {
 
             {/* ШАГ 3 — Готово */}
             {formStep === "done" && (
-              <div className="flex flex-col items-center text-center gap-4 py-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
-                  <Icon name="CheckCheck" size={28} className="text-coal" />
+              <div className="flex flex-col items-center text-center gap-4 py-2">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
+                    <Icon name="Flame" size={32} className="text-coal" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 text-2xl">✨</div>
                 </div>
                 <div>
-                  <h3 className="font-heading text-2xl font-bold text-gold-light">Готово, {form.name}!</h3>
-                  <p className="font-body text-white/55 text-sm mt-2 leading-relaxed">
-                    Проект парилки отправлен через{" "}
-                    {{ whatsapp:"WhatsApp", telegram:"Telegram", viber:"Viber", email:"Email", call:"звонок" }[channel]}.
-                    <br />Мастер свяжется с вами для уточнения деталей.
+                  <h3 className="font-heading text-2xl font-bold text-gold-light">
+                    Поздравляем, {form.name}!
+                  </h3>
+                  <p className="font-body text-white/60 text-sm mt-2 leading-relaxed max-w-xs">
+                    Вы на полпути к своему тёплому уголку мечты 🌿
+                    <br /><br />
+                    {config.masterName
+                      ? <>Мастер <b className="text-gold">{config.masterName}</b> уже видит ваш проект и скоро выйдет на связь.</>
+                      : "Скоро с вами свяжется мастер — он лично разберёт каждую деталь вашей будущей парилки."
+                    }
                   </p>
+                  <div className="mt-3 px-4 py-2.5 rounded-xl border border-gold/15 text-white/35 text-xs font-body"
+                    style={{ background: "rgba(201,147,58,0.05)" }}>
+                    Проект отправлен через {{ whatsapp:"WhatsApp", telegram:"Telegram", viber:"Viber", email:"Email", call:"звонок" }[channel]} 🔥
+                  </div>
                 </div>
                 <div className="flex gap-2 w-full">
                   <button onClick={handleDownloadPdf}
@@ -554,7 +604,7 @@ export default function Constructor() {
                   <button onClick={() => { setShowForm(false); setFormStep("contact"); }}
                     className="flex-1 py-2.5 rounded-xl font-heading text-xs tracking-widest uppercase text-coal"
                     style={{ background: "linear-gradient(135deg,#C9933A,#8A611A)" }}>
-                    Закрыть
+                    В конструктор
                   </button>
                 </div>
               </div>

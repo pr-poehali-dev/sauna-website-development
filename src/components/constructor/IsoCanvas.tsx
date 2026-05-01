@@ -149,80 +149,115 @@ function drawNeutralFloor(
 }
 
 // ─────────────────────────────────────────────
-//  Гималайская соль — панно с настраиваемым размером
+//  Гималайская соль — ширина 20 см, вертикальные кирпичи в 2 полосы
 // ─────────────────────────────────────────────
 function drawSaltPanel(
   ctx: CanvasRenderingContext2D,
   pts: [number,number][],
-  panelW: number,
+  _panelW: number,
   panelH: number,
   glowLED = false
 ) {
   const [tl, tr, br, bl] = pts;
-  const pw = Math.min(panelW, 0.98), ph = Math.min(panelH, 0.98);
-  const sL = (1 - pw) / 2, sR = sL + pw;
+  // Ширина соли всегда 20 см = 0.20 м в долях от панели (зафиксирована)
+  // Рисуем 2 вертикальные полосы по 20 см, расположенные симметрично
+  const STRIP_W = 0.20; // 20 см в метрах
+  // Высота панно
+  const ph = Math.min(panelH, 0.95);
   const tTop = 1 - ph - 0.04, tBot = 1 - 0.04;
 
-  const ptl = quadLerp(tl,tr,bl,br, sL, tTop);
-  const ptr2 = quadLerp(tl,tr,bl,br, sR, tTop);
-  const pbr = quadLerp(tl,tr,bl,br, sR, tBot);
-  const pbl = quadLerp(tl,tr,bl,br, sL, tBot);
-  const panelPts: [number,number][] = [ptl, ptr2, pbr, pbl];
+  // Ширина всей стены в пространстве панели = 1.0 (нормализовано)
+  // Полосы занимают 20см каждая, итого нужно знать долю
+  // Считаем: strip_fraction = STRIP_W / wall_width_m
+  // Но wall_width_m нам не передаётся — используем _panelW как долю от стены
+  // _panelW = saltPanelWidth / wallWidth, т.е. wallWidth = saltPanelWidth / _panelW
+  // Реальная доля полосы в стене = STRIP_W / (saltPanelWidth / _panelW) = STRIP_W * _panelW / saltPanelWidth
+  // Упрощаем: панно занимает _panelW стены, полоса = 20см из этого панно
+  // В долях от панно: strip_in_panel = STRIP_W / (width_of_panel_in_meters)
+  // Принимаем ширину панно в метрах = saltPanelWidth — передаём её через _panelW * wallW
+  // Для надёжности фиксируем: каждая полоса = 20% от панно (визуально)
+  const stripFrac = Math.min(0.18, 0.40); // каждая полоса — 18% ширины панно
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(ptl[0],ptl[1]); ctx.lineTo(ptr2[0],ptr2[1]);
-  ctx.lineTo(pbr[0],pbr[1]); ctx.lineTo(pbl[0],pbl[1]);
-  ctx.closePath(); ctx.clip();
+  // Две полосы: левая и правая, симметрично
+  const strips: [number,number][] = [
+    [0.15, 0.15 + stripFrac],
+    [0.85 - stripFrac, 0.85],
+  ];
 
-  // LED-подсветка соли снизу
-  if (glowLED) {
-    const grd = ctx.createLinearGradient(pbl[0],pbl[1],ptl[0],ptl[1]);
-    grd.addColorStop(0,"rgba(255,140,20,0.35)");
-    grd.addColorStop(0.35,"rgba(255,180,60,0.08)");
-    grd.addColorStop(1,"rgba(255,140,20,0)");
-    poly(ctx, panelPts, grd as unknown as string);
-  }
+  strips.forEach(([ sL, sR ]) => {
+    const ptl2 = quadLerp(tl,tr,bl,br, sL, tTop);
+    const ptr2 = quadLerp(tl,tr,bl,br, sR, tTop);
+    const pbr2 = quadLerp(tl,tr,bl,br, sR, tBot);
+    const pbl2 = quadLerp(tl,tr,bl,br, sL, tBot);
+    const panelPts: [number,number][] = [ptl2, ptr2, pbr2, pbl2];
 
-  const rows = 12, cols = 7;
-  for (let row = 0; row < rows; row++) {
-    const t0 = row / rows, t1 = (row+1) / rows;
-    const offset = (row % 2) * (0.5 / cols);
-    for (let col = 0; col < cols + 1; col++) {
-      const s0 = col / cols - offset, s1 = (col+1) / cols - offset;
-      const g = 0.04;
-      const c00 = quadLerp(ptl,ptr2,pbl,pbr, s0+g, t0+g);
-      const c10 = quadLerp(ptl,ptr2,pbl,pbr, s1-g, t0+g);
-      const c11 = quadLerp(ptl,ptr2,pbl,pbr, s1-g, t1-g);
-      const c01 = quadLerp(ptl,ptr2,pbl,pbr, s0+g, t1-g);
-      const hue = lerp(12, 28, rng(row*53+col*17));
-      const sat = lerp(55, 80, rng(row*31+col*97));
-      const lit = lerp(glowLED ? 55 : 48, glowLED ? 78 : 70, rng(row*7+col*11));
-      poly(ctx, [c00,c10,c11,c01], `hsl(${hue},${sat}%,${lit}%)`);
-      const cx2 = (c00[0]+c10[0]+c11[0]+c01[0])/4;
-      const cy2 = (c00[1]+c10[1]+c11[1]+c01[1])/4;
-      const bw = Math.hypot(c10[0]-c00[0], c10[1]-c00[1]);
-      const bh = Math.hypot(c01[1]-c00[1], c01[0]-c00[0]);
-      for (let k = 0; k < 5; k++) {
-        const kx = cx2 + (rng(row*5+col*3+k*7)-0.5)*bw*0.7;
-        const ky = cy2 + (rng(row*5+col*3+k*7+1)-0.5)*bh*0.7;
-        const kr = 0.5 + rng(k*11+row)*1.5;
-        ctx.beginPath(); ctx.arc(kx,ky,kr,0,Math.PI*2);
-        ctx.fillStyle=`rgba(255,230,200,${0.25+rng(k*3)*0.5})`; ctx.fill();
-      }
-      poly(ctx,[c00,c10,c11,c01],"transparent","rgba(100,40,10,0.35)",0.7);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(ptl2[0],ptl2[1]); ctx.lineTo(ptr2[0],ptr2[1]);
+    ctx.lineTo(pbr2[0],pbr2[1]); ctx.lineTo(pbl2[0],pbl2[1]);
+    ctx.closePath(); ctx.clip();
+
+    // LED-подсветка
+    if (glowLED) {
+      const grd = ctx.createLinearGradient(pbl2[0],pbl2[1],ptl2[0],ptl2[1]);
+      grd.addColorStop(0,"rgba(255,140,20,0.45)");
+      grd.addColorStop(0.35,"rgba(255,180,60,0.12)");
+      grd.addColorStop(1,"rgba(255,140,20,0)");
+      poly(ctx, panelPts, grd as unknown as string);
     }
-  }
-  ctx.restore();
 
+    // Вертикальные кирпичи (tall bricks): cols=2 (узкая полоса), rows=много
+    const cols = 2, rows = 14;
+    for (let row = 0; row < rows; row++) {
+      const t0 = row / rows, t1 = (row+1) / rows;
+      const offset = (row % 2) * (0.5 / cols);
+      for (let col = 0; col < cols + 1; col++) {
+        const s0 = col / cols - offset, s1 = (col+1) / cols - offset;
+        const g = 0.03;
+        const c00 = quadLerp(ptl2,ptr2,pbl2,pbr2, s0+g, t0+g);
+        const c10 = quadLerp(ptl2,ptr2,pbl2,pbr2, s1-g, t0+g);
+        const c11 = quadLerp(ptl2,ptr2,pbl2,pbr2, s1-g, t1-g);
+        const c01 = quadLerp(ptl2,ptr2,pbl2,pbr2, s0+g, t1-g);
+        const hue = lerp(12, 28, rng(row*53+col*17));
+        const sat = lerp(55, 80, rng(row*31+col*97));
+        const lit = lerp(glowLED ? 55 : 48, glowLED ? 78 : 70, rng(row*7+col*11));
+        poly(ctx, [c00,c10,c11,c01], `hsl(${hue},${sat}%,${lit}%)`);
+        // Кристаллы
+        const cx2 = (c00[0]+c10[0]+c11[0]+c01[0])/4;
+        const cy2 = (c00[1]+c10[1]+c11[1]+c01[1])/4;
+        const bw = Math.hypot(c10[0]-c00[0], c10[1]-c00[1]);
+        const bh = Math.hypot(c01[1]-c00[1], c01[0]-c00[0]);
+        for (let k = 0; k < 4; k++) {
+          const kx = cx2 + (rng(row*5+col*3+k*7)-0.5)*bw*0.7;
+          const ky = cy2 + (rng(row*5+col*3+k*7+1)-0.5)*bh*0.7;
+          const kr = 0.5 + rng(k*11+row)*1.2;
+          ctx.beginPath(); ctx.arc(kx,ky,kr,0,Math.PI*2);
+          ctx.fillStyle=`rgba(255,230,200,${0.25+rng(k*3)*0.5})`; ctx.fill();
+        }
+        poly(ctx,[c00,c10,c11,c01],"transparent","rgba(100,40,10,0.35)",0.7);
+      }
+    }
+    ctx.restore();
+
+    // Рамка полосы
+    ctx.save();
+    ctx.strokeStyle = glowLED ? "rgba(255,180,80,0.9)" : "rgba(201,147,58,0.7)";
+    ctx.lineWidth = glowLED ? 2.5 : 1.5;
+    if (glowLED) { ctx.shadowColor = "rgba(255,160,40,0.7)"; ctx.shadowBlur = 6; }
+    ctx.beginPath();
+    ctx.moveTo(panelPts[0][0], panelPts[0][1]);
+    panelPts.forEach(p => ctx.lineTo(p[0], p[1]));
+    ctx.closePath(); ctx.stroke();
+    ctx.restore();
+  });
+
+  // Подпись "20 см" между полосами (только в iso-виде для понимания)
+  const midTop = quadLerp(tl,tr,bl,br, 0.5, tTop + 0.05);
   ctx.save();
-  ctx.strokeStyle = glowLED ? "rgba(255,180,80,0.9)" : "rgba(201,147,58,0.7)";
-  ctx.lineWidth = glowLED ? 2.5 : 2;
-  if (glowLED) { ctx.shadowColor = "rgba(255,160,40,0.7)"; ctx.shadowBlur = 6; }
-  ctx.beginPath();
-  ctx.moveTo(panelPts[0][0], panelPts[0][1]);
-  panelPts.forEach(p => ctx.lineTo(p[0], p[1]));
-  ctx.closePath(); ctx.stroke();
+  ctx.fillStyle = "rgba(255,200,100,0.7)";
+  ctx.font = "bold 9px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("🧂 20 см", midTop[0], midTop[1]);
   ctx.restore();
 }
 
@@ -620,7 +655,7 @@ export function renderRoom(
   ctx: CanvasRenderingContext2D,
   config: RoomConfig,
   cw: number, ch: number,
-  view: "iso"|"front"|"back"|"left"|"right"|"top" = "iso"
+  view: "iso"|"front"|"back"|"left"|"right"|"top"|"ceiling" = "iso"
 ) {
   ctx.clearRect(0,0,cw,ch);
   ctx.fillStyle="#0D0904"; ctx.fillRect(0,0,cw,ch);
@@ -628,6 +663,11 @@ export function renderRoom(
   const { width: W, depth: D, height: H } = config;
   const { saltWall, juniperCeiling } = getAutoPlacement(config);
   const dir = config.direction==="horizontal"?"h":"v";
+
+  if (view==="ceiling") {
+    renderCeilingView(ctx, config, cw, ch);
+    return;
+  }
 
   if (view==="iso") {
     const scale=Math.min((cw*0.36)/(W*0.5+D*0.5),(ch*0.52)/(W*0.25+D*0.25+H*0.5));
@@ -717,6 +757,129 @@ export function renderRoom(
   } else {
     renderFlatView(ctx,config,cw,ch,view);
   }
+}
+
+// ─────────────────────────────────────────────
+//  Вид снизу вверх — потолок (ceiling view)
+// ─────────────────────────────────────────────
+function renderCeilingView(
+  ctx: CanvasRenderingContext2D,
+  config: RoomConfig,
+  cw: number, ch: number
+) {
+  const { width: W, depth: D } = config;
+  const pad = 60;
+  const sc = Math.min((cw - pad*2) / W, (ch - pad*2) / D);
+  const offX = (cw - W*sc) / 2, offY = (ch - D*sc) / 2;
+  const toX = (x: number) => offX + x*sc;
+  const toZ = (z: number) => offY + z*sc;
+  const Wc = WOOD_COLORS[config.wood] || WOOD_COLORS.lipa;
+
+  // Фон потолка — деревянная текстура
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(toX(0), toZ(0), W*sc, D*sc);
+  ctx.clip();
+
+  // Доски потолка
+  const dir = config.direction === "horizontal" ? "h" : "v";
+  const N = 28;
+  for (let i = 0; i < N; i++) {
+    const t0 = i / N, t1 = (i+1) / N;
+    const phase = (i + 3) % 4;
+    const colors = [Wc.light, Wc.mid, Wc.dark, Wc.mid];
+    ctx.globalAlpha = 0.85;
+    if (dir === "h") {
+      ctx.fillStyle = colors[phase];
+      ctx.fillRect(toX(0), toZ(0) + t0 * D*sc, W*sc, (t1-t0)*D*sc);
+      ctx.fillStyle = "rgba(0,0,0,0.15)";
+      ctx.fillRect(toX(0), toZ(0) + t1*D*sc - 2, W*sc, 2);
+    } else {
+      ctx.fillStyle = colors[phase];
+      ctx.fillRect(toX(0) + t0*W*sc, toZ(0), (t1-t0)*W*sc, D*sc);
+      ctx.fillStyle = "rgba(0,0,0,0.15)";
+      ctx.fillRect(toX(0) + t1*W*sc - 2, toZ(0), 2, D*sc);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Тепловой блик от подсветки
+  if (config.light) {
+    const grd = ctx.createRadialGradient(cw/2, ch/2, 20, cw/2, ch/2, W*sc*0.8);
+    grd.addColorStop(0, "rgba(255,200,60,0.25)");
+    grd.addColorStop(1, "rgba(255,140,20,0)");
+    ctx.fillStyle = grd; ctx.fillRect(toX(0), toZ(0), W*sc, D*sc);
+  }
+
+  // Можжевельник на потолке
+  if (config.juniper) {
+    const jw = config.juniperPanelWidth, jd = config.juniperPanelDepth;
+    const jx = (W - jw) / 2, jz = (D - jd) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(toX(jx), toZ(jz), jw*sc, jd*sc);
+    ctx.clip();
+    ctx.fillStyle = "#1C1008"; ctx.fillRect(toX(jx), toZ(jz), jw*sc, jd*sc);
+    // Срезы можжевельника
+    const cols2 = Math.ceil(jw*sc / 18) + 1;
+    const rows2 = Math.ceil(jd*sc / 18) + 1;
+    for (let ri = 0; ri < rows2; ri++) {
+      for (let ci = 0; ci < cols2; ci++) {
+        const cx2 = toX(jx) + (ci+0.5) * (jw*sc/cols2) + (rng(ri*31+ci*17)-0.5)*6;
+        const cy2 = toZ(jz) + (ri+0.5) * (jd*sc/rows2) + (rng(ri*13+ci*47)-0.5)*6;
+        const r = 6 + rng(ri*7+ci*11)*5;
+        drawJuniperSlice(ctx, cx2, cy2, r, r*0.55, ri*23+ci*41);
+      }
+    }
+    ctx.restore();
+    ctx.strokeStyle = config.light ? "rgba(255,200,80,0.85)" : "rgba(100,160,80,0.7)";
+    ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+    ctx.strokeRect(toX(jx), toZ(jz), jw*sc, jd*sc);
+    ctx.setLineDash([]);
+    // Аннотация можжевельника
+    ctx.fillStyle = "#5A9A40"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
+    ctx.fillText(`🌿 Можжевельник ${jw}×${jd}м`, toX(jx + jw/2), toZ(jz) - 6);
+  }
+
+  ctx.restore();
+
+  // Рамка + соль на потолке — если соль есть, подписать панно снизу (у задней стены)
+  ctx.strokeStyle = "rgba(201,147,58,0.6)"; ctx.lineWidth = 3;
+  ctx.strokeRect(toX(0), toZ(0), W*sc, D*sc);
+
+  // Гималайская соль — две полосы у задней стены (z = D-сторона), ширина 20 см каждая
+  if (config.salt && config.saltWall === "back") {
+    const STRIP_W = 0.20; // 20 см
+    const STRIP_H = config.saltPanelHeight; // высота панно
+    // Полосы у задней стены (D), слева и справа
+    const leftX = W * 0.15, rightX = W * (1 - 0.15) - STRIP_W;
+    [[leftX, rightX]].forEach(() => {
+      [leftX, rightX].forEach(sx => {
+        ctx.fillStyle = "rgba(220,120,60,0.35)";
+        ctx.fillRect(toX(sx), toZ(D - STRIP_H), STRIP_W*sc, STRIP_H*sc);
+        ctx.strokeStyle = "rgba(201,147,58,0.8)"; ctx.lineWidth = 1;
+        ctx.strokeRect(toX(sx), toZ(D - STRIP_H), STRIP_W*sc, STRIP_H*sc);
+      });
+    });
+    ctx.fillStyle = "rgba(255,180,80,0.8)"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
+    ctx.fillText(`🧂 Гим. соль 20 см × ${config.saltPanelHeight}м (2 полосы)`, toX(W/2), toZ(D - STRIP_H) - 6);
+  }
+
+  // Размерные линии
+  drawDimLabel(ctx, toX(0), ch - 30, toX(W), ch - 30, `${W.toFixed(1)} м`, false);
+  drawDimLabel(ctx, pad/2, toZ(0), pad/2, toZ(D), `${D.toFixed(1)} м`, true);
+  drawViewTitle(ctx, "ВИД СНИЗУ ВВЕРХ (ПОТОЛОК)", cw);
+
+  // Легенда
+  const legends: [string, string][] = [["Деревянный потолок", Wc.light]];
+  if (config.juniper) legends.push([`Можжевельник ${config.juniperPanelWidth}×${config.juniperPanelDepth}м`, "#5A9A40"]);
+  if (config.salt && config.saltWall === "back") legends.push(["Гим. соль 20 см × 2 полосы", "#E8906A"]);
+  if (config.light) legends.push(["LED подсветка", "#FFD060"]);
+  legends.forEach(([label, color], i) => {
+    ctx.fillStyle = color; ctx.fillRect(12, 48 + i*18, 10, 10);
+    ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.font = "10px Arial"; ctx.textAlign = "left";
+    ctx.fillText(label, 26, 48 + i*18 + 9);
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -853,6 +1016,32 @@ function renderFlatView(
     ctx.fillStyle="#C0C8D0"; ctx.fill();
   }
 
+  // Аннотации соли на стене
+  if (hasSalt) {
+    const sw = Math.min(config.saltPanelWidth / wallW, 0.95);
+    const sh = Math.min(config.saltPanelHeight / H, 0.95);
+    const sOffX = offX + (wallW*sc)*(1 - sw)/2;
+    const sOffY = offY + wallH*sc*(1 - sh - 0.04);
+    const sW = wallW*sc*sw, sH = wallH*sc*sh;
+    ctx.fillStyle="rgba(255,180,80,0.85)"; ctx.font="bold 10px Arial"; ctx.textAlign="center";
+    ctx.fillText(`🧂 Гим. соль: 20 см × 2 полосы`, offX+wallW*sc/2, sOffY - 8);
+    ctx.fillStyle="rgba(201,147,58,0.5)"; ctx.font="9px Arial";
+    ctx.fillText(`Высота: ${config.saltPanelHeight} м`, offX+wallW*sc/2, sOffY + sH + 14);
+    void sW; void sOffX;
+  }
+
+  // Аннотации можжевельника (если есть — указать высоту на стене)
+  if (config.juniper && (view === "back" || view === "left" || view === "right")) {
+    ctx.fillStyle="rgba(90,154,64,0.85)"; ctx.font="bold 9px Arial"; ctx.textAlign="center";
+    ctx.fillText(`🌿 Можжевельник потолок: ${config.juniperPanelWidth}×${config.juniperPanelDepth} м`, offX+wallW*sc/2, offY + 18);
+  }
+
+  // Дверь — аннотация
+  if (view === "front" && config.doorWall === "front") {
+    ctx.fillStyle="rgba(140,190,220,0.8)"; ctx.font="9px Arial"; ctx.textAlign="center";
+    ctx.fillText("Дверь 70×190 см, стекло закалённое, короб ольховый", offX+wallW*sc/2, offY+wallH*sc+20);
+  }
+
   ctx.strokeStyle="rgba(201,147,58,0.5)"; ctx.lineWidth=2;
   ctx.strokeRect(offX,offY,wallW*sc,wallH*sc);
   drawDimLabel(ctx,offX,ch-25,offX+wallW*sc,ch-25,`${wallW.toFixed(1)} м`,false);
@@ -883,7 +1072,7 @@ function drawViewTitle(ctx: CanvasRenderingContext2D, title:string, cw:number){
 }
 
 export interface IsoCanvasHandle {
-  getViewDataURL: (view:"iso"|"front"|"back"|"left"|"right"|"top")=>string;
+  getViewDataURL: (view:"iso"|"front"|"back"|"left"|"right"|"top"|"ceiling")=>string;
 }
 
 interface IsoCanvasProps { config: RoomConfig; }
